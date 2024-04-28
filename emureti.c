@@ -60,12 +60,10 @@ int main(int argc, char **argv) {
   if (!file_exists(data_path))
     die("data file '%s' does not exist", data_path);
 
-  // Initialize ReTI state.
+  // Allocate ReTI state.
 
   struct reti reti;	// Architectual state.
   struct shadow shadow; // Shadow state of simulator.
-
-  reti.pc = 0;
 
   // Read code file.
 
@@ -106,28 +104,93 @@ int main(int argc, char **argv) {
     }
   fclose(data_file);
 
+  // Simulate code on data.
+
+  reti.pc = 0;
+
   while (reti.pc < shadow.code_size) {
     const unsigned I = reti.code[reti.pc];
     const unsigned I31to30 = I >> 30;
     const unsigned I31to28 = I >> 28;
+    const unsigned I31to26 = I >> 26;
     const unsigned I31to27 = I >> 28;
     const unsigned I25to24 = (I >> 24) & 3;
     const unsigned I27to26 = (I >> 26) & 3;
     switch (I31to30) {
-    case BV2(0, 1):
+    case BV2(0, 1): // Load Instructions
+      switch (I31to28) {
+      case BV4(0, 1, 0, 0): // LOAD D i
+	break;
+      case BV4(0, 1, 0, 1): // LOADIN1 D i
+	break;
+      case BV4(0, 1, 1, 0): // LOADIN2 D i
+	break;
+      case BV4(0, 1, 1, 1): // LOADI D i
+	break;
+      }
       break;
-    case BV2(1, 0):
+    case BV2(1, 0): // Store Instructions
+      switch (I31to28) {
+      case BV4(1, 0, 0, 0): // STORE i
+	break;
+      case BV4(1, 0, 0, 1): // STOREIN1 i
+	break;
+      case BV4(1, 0, 1, 0): // STOREIN2 i
+	break;
+      case BV4(1, 0, 1, 1): // MOVE S D
+	break;
+      }
       break;
-    case BV2(0, 0):
+    case BV2(0, 0): // Compute Instructions
+      switch (I31to26) {
+      case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
+	break;
+      case BV6(0, 0, 0, 0, 1, 1): // ADDI D i
+	break;
+      case BV6(0, 0, 0, 1, 0, 0): // OPLUSI D i
+	break;
+      case BV6(0, 0, 0, 1, 0, 1): // ORI D i
+	break;
+      case BV6(0, 0, 0, 1, 1, 0): // ANDI D i
+	break;
+      case BV6(0, 0, 1, 0, 1, 0): // SUB D i
+	break;
+      case BV6(0, 0, 1, 0, 1, 1): // ADD D i
+	break;
+      case BV6(0, 0, 1, 1, 0, 0): // OPLUS D i
+	break;
+      case BV6(0, 0, 1, 1, 0, 1): // OR D i
+	break;
+      case BV6(0, 0, 1, 1, 1, 0): // AND D i
+	break;
+      }
       break;
-    case BV2(1, 1):
+    case BV2(1, 1): // Jump Instructions
+      switch (I31to27) {
+      case BV5(1, 1, 0, 0, 0): // NOP
+	break;
+      case BV5(1, 1, 0, 0, 1): // JUMP> i
+	break;
+      case BV5(1, 1, 0, 1, 0): // JUMP= i
+	break;
+      case BV5(1, 1, 0, 1, 1): // JUMP>= i
+	break;
+      case BV5(1, 1, 1, 0, 0): // JUMP< i
+	break;
+      case BV5(1, 1, 1, 0, 1): // JUMP!= i
+	break;
+      case BV5(1, 1, 1, 1, 0): // JUMP<= i
+	break;
+      case BV5(1, 1, 1, 1, 1): // JUMP i
+	break;
+      }
       break;
     }
   }
 
-  free(reti.code);
-  free(reti.data);
   free(shadow.valid);
+  free(reti.data);
+  free(reti.code);
 
   return 0;
 }
