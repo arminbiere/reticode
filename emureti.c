@@ -196,16 +196,16 @@ int main(int argc, char **argv) {
 
   for (size_t i = 0; i != shadow.data; i++)
     if (shadow.valid[i]) {
-      printf("%08x", (unsigned)i);
+      printf("%08x ", (unsigned)i);
       const unsigned word = reti.data[i];
       for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
 	printf(" %02x", tmp & 0xff);
-      fputc(' ', stdout);
+      fputs("  ", stdout);
       for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
 	int ch = tmp & 0xff;
 	printf("%c", isprint(ch) ? ch : '.');
       }
-      printf(" %10u %11d\n", word, (int) word);
+      printf("  %10u  %11d\n", word, (int) word);
     }
 
   free(shadow.valid);
