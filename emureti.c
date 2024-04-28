@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -40,7 +41,7 @@ struct reti {
 
 struct shadow {
   bool *valid;
-  size_t code_size;
+  size_t code, data;
 };
 
 int main(int argc, char **argv) {
@@ -73,13 +74,13 @@ int main(int argc, char **argv) {
   reti.code = malloc(CAPACITY * sizeof *reti.code);
   if (!reti.code)
     die("could not allocate code");
-  shadow.code_size = 0;
+  shadow.code = 0;
   unsigned word;
   while (fread(&word, sizeof word, 1, code_file) == 1)
-    if (shadow.code_size == CAPACITY)
+    if (shadow.code == CAPACITY)
       die("capacity of code area reached");
     else
-      reti.code[shadow.code_size++] = word;
+      reti.code[shadow.code++] = word;
   fclose(code_file);
 
   // Read data file and set valid memory area.
@@ -93,14 +94,14 @@ int main(int argc, char **argv) {
   reti.data = malloc(CAPACITY * sizeof *reti.data);
   if (!reti.data)
     die("could not allocate data");
-  size_t data_size = 0;
+  shadow.data = 0;
   while (fread(&word, sizeof word, 1, data_file) == 1)
-    if (data_size == CAPACITY)
+    if (shadow.data == CAPACITY)
       die("capacity of data area reached");
     else {
-      shadow.valid[data_size] = true;
-      reti.data[data_size] = word;
-      data_size++;
+      shadow.valid[shadow.data] = true;
+      reti.data[shadow.data] = word;
+      shadow.data++;
     }
   fclose(data_file);
 
@@ -108,14 +109,17 @@ int main(int argc, char **argv) {
 
   reti.pc = 0;
 
-  while (reti.pc < shadow.code_size) {
-    const unsigned I = reti.code[reti.pc];
+  while (reti.pc < shadow.code) {
+    const unsigned pc = reti.pc;
+    const unsigned I = reti.code[pc];
     const unsigned I31to30 = I >> 30;
     const unsigned I31to28 = I >> 28;
     const unsigned I31to26 = I >> 26;
     const unsigned I31to27 = I >> 28;
+#if 0
     const unsigned I25to24 = (I >> 24) & 3;
     const unsigned I27to26 = (I >> 26) & 3;
+#endif
     switch (I31to30) {
     case BV2(0, 1): // Load Instructions
       switch (I31to28) {
@@ -186,7 +190,23 @@ int main(int argc, char **argv) {
       }
       break;
     }
+    if (reti.pc == pc)
+      break;
   }
+
+  for (size_t i = 0; i != shadow.data; i++)
+    if (shadow.valid[i]) {
+      printf("%08x", (unsigned)i);
+      const unsigned word = reti.data[i];
+      for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
+	printf(" %02x", tmp & 0xff);
+      fputc(' ', stdout);
+      for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
+	int ch = tmp & 0xff;
+	printf("%c", isprint(ch) ? ch : '.');
+      }
+      printf(" %10u %11d\n", word, (int) word);
+    }
 
   free(shadow.valid);
   free(reti.data);
