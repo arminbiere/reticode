@@ -28,21 +28,21 @@ int main(int argc, char **argv) {
   // Some trivial option handling here.
 
   if (argc != 3) {
-    printf("usage: asreti <assembler> <binary>\n");
+    printf("usage: asreti <assembler> <code>\n");
     exit(0);
   }
 
   const char *assembler_path = argv[1];
-  const char *binary_path = argv[2];
+  const char *code_path = argv[2];
 
-  if (!file_exists(binary_path))
+  if (!file_exists(code_path))
     die("assembler file '%s' does not exist", assembler_path);
 
-  // Initialize binary.
+  // Initialize code.
 
-  unsigned * binary = malloc (CAPACITY * sizeof *binary);
-  if (!binary)
-    die ("could not allocate binary");
+  unsigned * code = malloc (CAPACITY * sizeof *code);
+  if (!code)
+    die ("could not allocate code");
 
   // Read assembler file.
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     die ("could not read assembler file '%s'", assembler_path);
   fclose (assembler_file);
 
-  free (binary);
+  free (code);
 
   return 0;
 }
