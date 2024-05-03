@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
     const unsigned signed_immediate = immediate_extension | unsigned_immediate;
 
     const int immediate_sign_char = immediate_sign_bit ? '-' : '+';
-    const int abs_immediate = abs ((int) signed_immediate);
+    const int abs_immediate = abs((int)signed_immediate);
 
     // Get content of source register and its symbolic name (in any case).
 
@@ -328,6 +328,8 @@ int main(int argc, char **argv) {
     unsigned result = 0;       // Computed, loaded, or stored result.
     unsigned address = 0;      // Address to read from or write to memory.
     unsigned loaded;	       // Loaded from memory.
+    bool taken = false;
+    char *comparison = 0;
 
     unsigned *M = reti.data; // Also used couple of times.
 
@@ -514,24 +516,54 @@ int main(int argc, char **argv) {
 	ACTION(" ");
 	break;
       case BV5(1, 1, 0, 0, 1): // JUMP> i
+	taken = ((int)ACC > 0);
+	comparison = taken ? ">" : "<=";
+	INSTRUCTION("JUMP> %d", signed_immediate);
 	break;
       case BV5(1, 1, 0, 1, 0): // JUMP= i
+	taken = ((int)ACC == 0);
+	comparison = taken ? "=" : "!=";
+	INSTRUCTION("JUMP= %d", signed_immediate);
 	break;
       case BV5(1, 1, 0, 1, 1): // JUMP>= i
+	taken = ((int)ACC >= 0);
+	comparison = taken ? ">=" : "<";
+	INSTRUCTION("JUMP>= %d", signed_immediate);
 	break;
       case BV5(1, 1, 1, 0, 0): // JUMP< i
+	taken = ((int)ACC < 0);
+	comparison = taken ? "<" : ">=";
+	INSTRUCTION("JUMP< %d", signed_immediate);
 	break;
       case BV5(1, 1, 1, 0, 1): // JUMP!= i
+	taken = ((int)ACC != 0);
+	comparison = taken ? "!=" : "=";
+	INSTRUCTION("JUMP!= %d", signed_immediate);
 	break;
       case BV5(1, 1, 1, 1, 0): // JUMP<= i
+	taken = ((int)ACC <= 0);
+	comparison = taken ? "<=" : ">";
+	INSTRUCTION("JUMP<= %d", signed_immediate);
 	break;
       case BV5(1, 1, 1, 1, 1): // JUMP i
-	PC_next = PC + signed_immediate;
+	taken = true;
 	INSTRUCTION("JUMP %d", signed_immediate);
-	ACTION ("PC = PC + [0x%x] = %u %c %d = %u = 0x%x",
-	        i, PC, immediate_sign_char, abs_immediate,
-		PC_next, PC_next);
 	break;
+      }
+      if (taken) {
+	PC_next = PC + signed_immediate;
+	if (comparison)
+	  ACTION("next PC = PC + [0x%x] = %u %c %d = %u = 0x%x "
+		 "as %d = [0x%x] = ACC %s 0",
+		 i, PC, immediate_sign_char, abs_immediate, PC_next, PC_next,
+		 (int)ACC, ACC, comparison);
+	else
+	  ACTION("PC = PC + [0x%x] = %u %c %d = %u = 0x%x", i, PC,
+		 immediate_sign_char, abs_immediate, PC_next, PC_next);
+      } else {
+	assert(comparison);
+	assert(PC_next == PC + 1);
+	ACTION("no jump as %d = [0x%x] = ACC %s 0", ACC, ACC, comparison);
       }
       break; // end of Jump Instructions
     }
