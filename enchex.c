@@ -36,7 +36,7 @@ static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
   fprintf(stderr, "enchex: parse error: at line %zu in '%s': ",
-	  lineno - (last_input_char == '\n'), input_path);
+          lineno - (last_input_char == '\n'), input_path);
   va_list ap;
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
       printf("usage: enchex [ <input> [ <output> ] ]\n");
       exit(0);
-    } else if (arg[0] == '-')
+    } else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (!input_path)
       input_path = arg;
@@ -95,10 +95,13 @@ int main(int argc, char **argv) {
       output_path = arg;
     else
       die("too many files '%s', '%s' and '%s' (try '-h')", input_path,
-	  output_path, arg);
+          output_path, arg);
   }
 
   // Open and read input file.
+
+  if (input_path && !strcmp(input_path, "-"))
+    input_path = 0;
 
   if (!input_path)
     input_path = "<stdin>", input_file = stdin;
@@ -110,6 +113,9 @@ int main(int argc, char **argv) {
     close_input_file = true;
 
   // Open and write output file.
+
+  if (output_path && !strcmp(output_path, "-"))
+    output_path = 0;
 
   if (!output_path && isatty(1))
     die("will not write binary data to terminal");
@@ -132,15 +138,15 @@ int main(int argc, char **argv) {
       error("invalid empty line");
     if (ch == ';') {
       while ((ch = read_char()) != '\n')
-	if (ch == EOF)
-	  error("unexpected end-of-file in comment");
+        if (ch == EOF)
+          error("unexpected end-of-file in comment");
       continue;
     }
     unsigned address = 0;
     for (unsigned nibble = 0; nibble != 8; nibble++) {
       int digit = char2hex(ch);
       if (digit < 0)
-	error("invalid address");
+        error("invalid address");
       address <<= 4;
       address |= digit;
       ch = read_char();
@@ -150,17 +156,17 @@ int main(int argc, char **argv) {
     ch = read_char();
     if (words > address)
       error("address 0x%08x below parsed words 0x%08x", address,
-	    (unsigned)(words - 1));
+            (unsigned)(words - 1));
     while (words < address) {
       for (unsigned byte = 0; byte != 4; byte++)
-	fputc((unsigned char)0, output_file);
+        fputc((unsigned char)0, output_file);
       words++;
     }
     unsigned data = 0;
     for (unsigned nibble = 0; nibble != 8; nibble++) {
       int digit = char2hex(ch);
       if (digit < 0)
-	error("invalid data");
+        error("invalid data");
       data <<= 4;
       data |= digit;
       ch = read_char();
@@ -180,8 +186,8 @@ int main(int argc, char **argv) {
 
     if (ch == ';') {
       while ((ch = read_char()) != '\n')
-	if (ch == EOF)
-	  error("unexpected end-of-file in comment");
+        if (ch == EOF)
+          error("unexpected end-of-file in comment");
     }
 
     if (ch != '\n')
