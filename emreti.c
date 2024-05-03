@@ -16,11 +16,11 @@
 
 // Yields 2^32 words = 16 GB for each the code and data memory.
 //
-// #define CAPACITY ((size_t)1 << 32)
+#define CAPACITY ((size_t)1 << 32)
 
 // Yields 2^16 words = 256 KB for each the code and data memory.
 //
-#define CAPACITY ((size_t)1 << 32) // yields 2^16 words = 256 KB
+// #define CAPACITY ((size_t)1 << 32) // yields 2^16 words = 256 KB
 
 // These 'BV' macros allow to generate constant bit-vectors of the given
 // size at compile time.  Using functions would not work.
@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
 
 #ifdef STEPPING
   bool step = false;
+  size_t steps = 0;
 #endif
 
   const char *code_path = 0;
@@ -98,7 +99,9 @@ int main(int argc, char **argv) {
 #ifdef STEPPING
       step = true;
 #else
-      die("invalid option '%s' (compiled without stepping support)", arg);
+      die("invalid option '%s' "
+	  "(configured and compiled without stepping support)",
+	  arg);
 #endif
     } else if (arg[0] == '-')
       die("invalid option '%s' (try '-h')", arg);
@@ -223,11 +226,11 @@ int main(int argc, char **argv) {
 
     const unsigned I31to30 = I >> 30;
     const unsigned I31to28 = I >> 28;
+    const unsigned I31to27 = I >> 27;
     const unsigned I31to26 = I >> 26;
-    const unsigned I31to27 = I >> 28;
-    const unsigned I23toI0 = I & 0xffffff;
-    const unsigned I25to24 = (I >> 24) & 3;
     const unsigned I27to26 = (I >> 26) & 3;
+    const unsigned I25to24 = (I >> 24) & 3;
+    const unsigned I23toI0 = I & 0xffffff;
 
     const unsigned i = I23toI0;
     const unsigned unsigned_immediate = i;
@@ -282,6 +285,11 @@ int main(int argc, char **argv) {
       D_symbol = "ACC";
       break;
     }
+
+#ifndef STEPPING
+    (void)S_symbol;
+    (void)D_symbol;
+#endif
 
     unsigned PC_next = PC + 1; // Default is to increase PC.
     bool D_write = false;      // Default is not to write to register D.
@@ -347,7 +355,6 @@ int main(int argc, char **argv) {
 
     case BV2(0, 0): // Compute Instructions
       switch (I31to26) {
-	unsigned result;
       case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
 	result = S - signed_immediate;
 	INSTRUCTION("SUBI %s %d", S_symbol, signed_immediate);
@@ -420,22 +427,25 @@ int main(int argc, char **argv) {
       break; // end of Jump Instructions
     }
 
+#ifdef STEPPING
+    if (step) {
+      if (!steps++) {
+	fputs("PC       IN1      IN2      ACC      ", stdout);
+	fputs("INSTRUCTION           ACTION\n", stdout);
+      }
+      printf("%08x %08x %08x %08x ", reti.PC, reti.IN1, reti.IN2, reti.ACC);
+      printf("%-21s", instruction);
+      fputs(" ", stdout);
+      fputs(action, stdout);
+      fputc('\n', stdout);
+      fflush(stdout);
+    }
+#endif
+
     if (M_read) {
       if (address >= shadow.data || !shadow.valid[address])
 	warn("read uninitialized 'data[0x%x]'", address);
     }
-
-#ifdef STEPPING
-    if (step) {
-      fprintf(stderr, "PC=0x%08x IN1=0x%08x IN2=0x%08x ACC=0x%08x  ", reti.PC,
-	      reti.IN1, reti.IN2, reti.ACC);
-      fprintf(stderr, "%-18s", instruction);
-      fputs(" : ", stderr);
-      fputs(action, stderr);
-      fputc('\n', stderr);
-      fflush(stdout);
-    }
-#endif
 
     assert(!D_write || !M_write);
 
@@ -476,18 +486,20 @@ int main(int argc, char **argv) {
       break;
   }
 
+  fputs("DATA     BYTES       ASCII UNSIGNED SIGNED\n", stdout);
+
   for (size_t i = 0; i != shadow.data; i++)
     if (shadow.valid[i]) {
-      printf("%08x ", (unsigned)i);
+      printf("%08x", (unsigned)i);
       const unsigned word = reti.data[i];
       for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
 	printf(" %02x", tmp & 0xff);
-      fputs("  ", stdout);
+      fputs(" ", stdout);
       for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
 	int ch = tmp & 0xff;
 	printf("%c", isprint(ch) ? ch : '.');
       }
-      fputc('\n', stdout);
+      printf("%10u %d\n", (unsigned)word, (int)word);
     }
 
   free(shadow.valid);

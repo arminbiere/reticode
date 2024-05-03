@@ -6,4 +6,6 @@ emreti: emreti.c makefile
 	$(COMPILE) -o $@ $<
 clean:
 	rm -f emreti asreti makefile
-.PHONY: all clean
+test: emreti
+	make -C test/example1
+.PHONY: all clean test
