@@ -516,7 +516,7 @@ int main(int argc, char **argv) {
       code |= i;
     }
 
-    if (ch != ' ' && ch != '\t' && ch != '\n') {
+    if (ch != ' ' && ch != '\t' && ch != ';' && ch != '\n') {
       if (parse_immediate)
         invalid_immediate();
       else if (parse_destination)
