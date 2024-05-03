@@ -256,12 +256,24 @@ int main(int argc, char **argv) {
 
   // Run the emulation until we get to a self-loop or reach undefined code.
 
-  while (reti.PC < shadow.code) {
+  for (;;) {
 
     const unsigned PC = reti.PC;
+    const unsigned IN1 = reti.IN1;
+    const unsigned IN2 = reti.IN2;
+    const unsigned ACC = reti.ACC;
+
     if (PC >= shadow.code) {
-      warn("stopping at undefined 'code[0x%08x]' above 0x%08x", PC,
-           (unsigned)(shadow.code - 1));
+#ifdef STEPPING
+      if (step) {
+        if (!steps)
+          fputs("PC       IN1      IN2      ACC\n", stdout);
+        printf("%08x %08x %08x %08x\n", PC, IN1, IN2, ACC);
+      }
+#endif
+      if (PC != shadow.code)
+        warn("stopping at undefined 'code[0x%08x]' above 0x%08x", PC,
+             (unsigned)(shadow.code - 1));
       break;
     }
     const unsigned I = reti.code[PC];
@@ -280,14 +292,10 @@ int main(int argc, char **argv) {
     const unsigned immediate_extension = immediate_sign_bit ? 0xff000000 : 0;
     const unsigned signed_immediate = immediate_extension | unsigned_immediate;
 
+#ifdef STEPPING
     const int immediate_sign_char = immediate_sign_bit ? '-' : '+';
     const int abs_immediate = abs((int)signed_immediate);
-
-    // Get content of source register and its symbolic name (in any case).
-
-    const unsigned IN1 = reti.IN1;
-    const unsigned IN2 = reti.IN2;
-    const unsigned ACC = reti.ACC;
+#endif
 
     unsigned S = 0;
     const char *S_symbol = 0;
@@ -369,33 +377,33 @@ int main(int argc, char **argv) {
       case BV4(0, 1, 0, 0): // LOAD D i
         address = unsigned_immediate;
         result = M[address];
-        INSTRUCTION("LOAD %s %u", S_symbol, i);
-        ACTION("%s = M(<0x%x>) = M(0x%x) = 0x%x", S_symbol, i, address, result);
+        INSTRUCTION("LOAD %s %u", D_symbol, i);
+        ACTION("%s = M(<0x%x>) = M(0x%x) = 0x%x", D_symbol, i, address, result);
         M_read = true;
         D_write = true;
         break;
       case BV4(0, 1, 0, 1): // LOADIN1 D i
         address = IN1 + unsigned_immediate;
-        INSTRUCTION("LOADIN1 %s %u", S_symbol, i);
+        INSTRUCTION("LOADIN1 %s %u", D_symbol, i);
         ACTION("%s = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
-               S_symbol, i, IN1, i, address, result);
+               D_symbol, i, IN1, i, address, result);
         result = M[address];
         M_read = true;
         D_write = true;
         break;
       case BV4(0, 1, 1, 0): // LOADIN2 D i
         address = IN2 + unsigned_immediate;
-        INSTRUCTION("LOADIN2 %s %u", S_symbol, i);
+        INSTRUCTION("LOADIN2 %s %u", D_symbol, i);
         ACTION("%s = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
-               S_symbol, i, IN2, i, address, result);
+               D_symbol, i, IN2, i, address, result);
         result = M[address];
         M_read = true;
         D_write = true;
         break;
       case BV4(0, 1, 1, 1): // LOADI D i
         result = unsigned_immediate;
-        INSTRUCTION("LOADI %s %u", S_symbol, i);
-        ACTION("%s = 0x%x", S_symbol, i);
+        INSTRUCTION("LOADI %s %u", D_symbol, i);
+        ACTION("%s = 0x%x", D_symbol, i);
         D_write = true;
         break;
       }
@@ -439,45 +447,45 @@ int main(int argc, char **argv) {
       unsigned D = *D_pointer;
       switch (I31to26) {
       case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
-        result = S - signed_immediate;
-        INSTRUCTION("SUBI %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s - [0x%x] = %d - %d = %d = [0x%x]", D_symbol, S_symbol,
-               i, (int)S, (int)i, (int)result, result);
+        result = D - signed_immediate;
+        INSTRUCTION("SUBI %s %d", D_symbol, signed_immediate);
+        ACTION("%s = %s - [0x%x] = %d - %d = %d = [0x%x]", D_symbol, D_symbol,
+               i, (int)D, (int)i, (int)result, result);
         D_write = true;
         break;
       case BV6(0, 0, 0, 0, 1, 1): // ADDI D i
-        result = S + signed_immediate;
-        INSTRUCTION("ADDI %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s + [0x%x] = %d + %d = %d = [0x%x]", D_symbol, S_symbol,
-               i, (int)S, (int)i, (int)result, result);
+        result = D + signed_immediate;
+        INSTRUCTION("ADDI %s %d", D_symbol, signed_immediate);
+        ACTION("%s = %s + [0x%x] = %d + %d = %d = [0x%x]", D_symbol, D_symbol,
+               i, (int)D, (int)i, (int)result, result);
         D_write = true;
         break;
       case BV6(0, 0, 0, 1, 0, 0): // OPLUSI D i
-        result = S ^ unsigned_immediate;
-        INSTRUCTION("OPLUSI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s ^ 0x%x = 0x%x ^ 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
+        result = D ^ unsigned_immediate;
+        INSTRUCTION("OPLUSI %s 0x%x", D_symbol, i);
+        ACTION("%s = %s ^ 0x%x = 0x%x ^ 0x%x = 0x%x", D_symbol, D_symbol,
+               unsigned_immediate, D, unsigned_immediate, result);
         D_write = true;
         break;
       case BV6(0, 0, 0, 1, 0, 1): // ORI D i
-        result = S | unsigned_immediate;
-        INSTRUCTION("ORI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s | 0x%x = 0x%x | 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
+        result = D | unsigned_immediate;
+        INSTRUCTION("ORI %s 0x%x", D_symbol, i);
+        ACTION("%s = %s | 0x%x = 0x%x | 0x%x = 0x%x", D_symbol, D_symbol,
+               unsigned_immediate, D, unsigned_immediate, result);
         D_write = true;
         break;
       case BV6(0, 0, 0, 1, 1, 0): // ANDI D i
-        result = S & unsigned_immediate;
-        INSTRUCTION("ANDI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s & 0x%x = 0x%x & 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
+        result = D & unsigned_immediate;
+        INSTRUCTION("ANDI %s 0x%x", D_symbol, i);
+        ACTION("%s = %s & 0x%x = 0x%x & 0x%x = 0x%x", D_symbol, D_symbol,
+               unsigned_immediate, D, unsigned_immediate, result);
         D_write = true;
         break;
       case BV6(0, 0, 1, 0, 1, 0): // SUB D i
         address = unsigned_immediate;
         loaded = M[address];
         result = D - loaded;
-        INSTRUCTION("SUB %s %d", S_symbol, signed_immediate);
+        INSTRUCTION("SUB %s %d", D_symbol, signed_immediate);
         ACTION("%s = %s - M(<0x%x>) = %s - [0x%x] = %d - %d = %d = [0x%x]",
                D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
                (int)result, result);
@@ -488,7 +496,7 @@ int main(int argc, char **argv) {
         address = unsigned_immediate;
         loaded = M[address];
         result = D + loaded;
-        INSTRUCTION("ADD %s %d", S_symbol, signed_immediate);
+        INSTRUCTION("ADD %s %d", D_symbol, signed_immediate);
         ACTION("%s = %s + M(<0x%x>) = %s + [0x%x] = %d + %d = %d = [0x%x]",
                D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
                (int)result, result);
@@ -499,7 +507,7 @@ int main(int argc, char **argv) {
         address = unsigned_immediate;
         loaded = M[address];
         result = D ^ loaded;
-        INSTRUCTION("OPLUS %s 0x%x", S_symbol, i);
+        INSTRUCTION("OPLUS %s 0x%x", D_symbol, i);
         ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x", D_symbol, D_symbol,
                i, D, loaded, result);
         D_write = true;
@@ -509,7 +517,7 @@ int main(int argc, char **argv) {
         address = unsigned_immediate;
         loaded = M[address];
         result = D | loaded;
-        INSTRUCTION("OR %s 0x%x", S_symbol, i);
+        INSTRUCTION("OR %s 0x%x", D_symbol, i);
         ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x", D_symbol, D_symbol,
                i, D, loaded, result);
         D_write = true;
@@ -519,7 +527,7 @@ int main(int argc, char **argv) {
         address = unsigned_immediate;
         loaded = M[address];
         result = D & loaded;
-        INSTRUCTION("AND %s 0x%x", S_symbol, i);
+        INSTRUCTION("AND %s 0x%x", D_symbol, i);
         ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x", D_symbol, D_symbol,
                i, D, loaded, result);
         D_write = true;
@@ -571,7 +579,7 @@ int main(int argc, char **argv) {
       if (taken) {
         PC_next = PC + signed_immediate;
         if (comparison)
-          ACTION("next PC = PC + [0x%x] = %u %c %d = %u = 0x%x "
+          ACTION("PC = PC + [0x%x] = %u %c %d = %u = 0x%x "
                  "as %d = [0x%x] = ACC %s 0",
                  i, PC, immediate_sign_char, abs_immediate, PC_next, PC_next,
                  (int)ACC, ACC, comparison);

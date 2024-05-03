@@ -147,9 +147,9 @@ int main(int argc, char **argv) {
   if (!assembler_path)
     assembler_path = "<stdin>", assembler_file = stdin;
   else if (!file_exists(assembler_path))
-    die("could not find assembler file '%s'", assembler_path);
-  if (!(assembler_file = fopen(assembler_path, "r")))
-    die("could not read assembler file '%s'", assembler_path);
+    die("can not find assembler file '%s'", assembler_path);
+  else if (!(assembler_file = fopen(assembler_path, "r")))
+    die("can not read assembler file '%s'", assembler_path);
   else
     close_assembler_file = true;
 
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
   else if (!code_path)
     code_path = "<stdout>", code_file = stdout;
   else if (!(code_file = fopen(code_path, "w")))
-    die("could not write code file '%s'", code_path);
+    die("can not write code file '%s'", code_path);
   else
     close_code_file = true;
 
@@ -484,35 +484,42 @@ int main(int argc, char **argv) {
           invalid_instruction();
         }
       }
-      int sign;
       ch = read_char();
+      unsigned i;
       if (ch == '-') {
-        sign = -1;
         ch = read_char();
-        if (ch == '0')
+        if (ch == '0' || !isdigit(ch))
           invalid_immediate();
-      } else
-        sign = 1;
-      if (!isdigit(ch))
-        invalid_immediate();
-      unsigned i = (ch - '0');
-      const unsigned max_immediate = 0xffffff;
-      while (isdigit(ch = read_char())) {
-        if (max_immediate / 10 < i)
-          invalid_immediate();
-        i *= 10;
-        int digit = ch - '0';
-        if (max_immediate - digit < i)
+        i = (ch - '0');
+        const unsigned max_immediate = 0x800000;
+        while (isdigit(ch = read_char())) {
+          if (max_immediate / 10 < i)
+            invalid_immediate();
+          i *= 10;
+          int digit = ch - '0';
+          if (max_immediate - digit < i)
+            invalid_immediate();
           i += digit;
-      }
-      assert(i <= max_immediate);
-      if (sign < 0) {
-        const unsigned max_signed_immediate = 0x800000;
-        if (i > max_signed_immediate)
+        }
+        assert(i <= max_immediate);
+        i = (~i + 1) & 0xffffff;
+        code |= i;
+      } else {
+        if (!isdigit(ch))
           invalid_immediate();
-        i = (~i + 1) & max_immediate;
+        i = (ch - '0');
+        const unsigned max_immediate = 0xffffff;
+        while (isdigit(ch = read_char())) {
+          if (max_immediate / 10 < i)
+            invalid_immediate();
+          i *= 10;
+          int digit = ch - '0';
+          if (max_immediate - digit < i)
+            invalid_immediate();
+          i += digit;
+        }
       }
-      assert(i <= max_immediate);
+      assert(i <= 0xffffff);
       code |= i;
     }
 
