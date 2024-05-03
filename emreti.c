@@ -259,7 +259,10 @@ int main(int argc, char **argv) {
     const unsigned unsigned_immediate = i;
     const unsigned immediate_sign_bit = (i >> 23) & 1;
     const unsigned immediate_extension = immediate_sign_bit ? 0xff000000 : 0;
-    unsigned signed_immediate = immediate_extension | unsigned_immediate;
+    const unsigned signed_immediate = immediate_extension | unsigned_immediate;
+
+    const int immediate_sign_char = immediate_sign_bit ? '-' : '+';
+    const int abs_immediate = abs ((int) signed_immediate);
 
     // Get content of source register and its symbolic name (in any case).
 
@@ -453,7 +456,7 @@ int main(int argc, char **argv) {
 	address = unsigned_immediate;
 	loaded = M[address];
 	result = D - loaded;
-	INSTRUCTION("SUB %s %u", S_symbol, i);
+	INSTRUCTION("SUB %s %d", S_symbol, signed_immediate);
 	ACTION("%s = %s - M(<0x%x>) = %s - [0x%x] = %d - %d = %d = [0x%x]",
 	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
 	       (int)result, result);
@@ -464,7 +467,7 @@ int main(int argc, char **argv) {
 	address = unsigned_immediate;
 	loaded = M[address];
 	result = D + loaded;
-	INSTRUCTION("ADD %s %u", S_symbol, i);
+	INSTRUCTION("ADD %s %d", S_symbol, signed_immediate);
 	ACTION("%s = %s + M(<0x%x>) = %s + [0x%x] = %d + %d = %d = [0x%x]",
 	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
 	       (int)result, result);
@@ -476,8 +479,8 @@ int main(int argc, char **argv) {
 	loaded = M[address];
 	result = D ^ loaded;
 	INSTRUCTION("OPLUS %s 0x%x", S_symbol, i);
-	ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x",
-	       D_symbol, D_symbol, i, D, loaded, result);
+	ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
 	D_write = true;
 	M_read = true;
 	break;
@@ -486,8 +489,8 @@ int main(int argc, char **argv) {
 	loaded = M[address];
 	result = D | loaded;
 	INSTRUCTION("OR %s 0x%x", S_symbol, i);
-	ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x",
-	       D_symbol, D_symbol, i, D, loaded, result);
+	ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
 	D_write = true;
 	M_read = true;
 	break;
@@ -496,8 +499,8 @@ int main(int argc, char **argv) {
 	loaded = M[address];
 	result = D & loaded;
 	INSTRUCTION("AND %s 0x%x", S_symbol, i);
-	ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x",
-	       D_symbol, D_symbol, i, D, loaded, result);
+	ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
 	D_write = true;
 	M_read = true;
 	break;
@@ -523,6 +526,11 @@ int main(int argc, char **argv) {
       case BV5(1, 1, 1, 1, 0): // JUMP<= i
 	break;
       case BV5(1, 1, 1, 1, 1): // JUMP i
+	PC_next = PC + signed_immediate;
+	INSTRUCTION("JUMP %d", signed_immediate);
+	ACTION ("PC = PC + [0x%x] = %u %c %d = %u = 0x%x",
+	        i, PC, immediate_sign_char, abs_immediate,
+		PC_next, PC_next);
 	break;
       }
       break; // end of Jump Instructions
@@ -583,7 +591,7 @@ int main(int argc, char **argv) {
 
     reti.PC = PC_next;
 
-    if (PC_next == PC)
+    if (PC_next == PC) // Stuck in infinite loop.
       break;
   }
 
