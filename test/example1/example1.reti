@@ -1,0 +1,5 @@
+; The simple first example
+LOADI ACC 1
+NOP
+ADDI ACC 1
+STORE 3
