@@ -9,6 +9,8 @@
 #include <sys/types.h> // needed by 'stat'
 #include <unistd.h>    // needed by 'stat'
 
+//----------------------------------------------------------------------------//
+
 // On Linux allocating 2^32 unsigned words for the code and data memories
 // succeeds as it actually only allocates virtual memory, which is mapped
 // (really allocated) only when used.  On other platforms you might want to
@@ -22,6 +24,8 @@
 //
 // #define CAPACITY ((size_t)1 << 32) // yields 2^16 words = 256 KB
 
+//----------------------------------------------------------------------------//
+
 // These 'BV' macros allow to generate constant bit-vectors of the given
 // size at compile time.  Using functions would not work.
 
@@ -34,6 +38,8 @@
 
 #define BV6(B5, B4, B3, B2, B1, B0)                                            \
   ((B5 << 5) | (B4 << 4) | (B3 << 3) | (B2 << 2) | (B1 << 1) | (B0 << 0))
+
+//----------------------------------------------------------------------------//
 
 // Exit with error message with 'printf' style usage.
 //
@@ -67,6 +73,8 @@ static void warn(const char *fmt, ...) {
   fflush(stderr);
 }
 
+//----------------------------------------------------------------------------//
+
 // Check if the given path exists as file.
 
 static bool file_exists(const char *path) {
@@ -74,8 +82,13 @@ static bool file_exists(const char *path) {
   return !stat(path, &buf);
 }
 
+//----------------------------------------------------------------------------//
+
+// The whole emulator runs in the main function.
+
 int main(int argc, char **argv) {
 
+  //--------------------------------------------------------------------------//
   // First parse command line options.
 
 #ifdef STEPPING
@@ -123,6 +136,8 @@ int main(int argc, char **argv) {
   if (!file_exists(data_path))
     die("data file '%s' does not exist", data_path);
 
+  //--------------------------------------------------------------------------//
+
   // The actual state of our ReTI machine is saved in this 'reti' structure.
   //
   // We can assume that 'unsigned' is a 32-bit word and thus we use 'unsigned'
@@ -141,6 +156,8 @@ int main(int argc, char **argv) {
     bool *valid;
     size_t code, data;
   } shadow;
+
+  //--------------------------------------------------------------------------//
 
   // Read code file.
 
@@ -181,9 +198,11 @@ int main(int argc, char **argv) {
     }
   fclose(data_file);
 
+  //--------------------------------------------------------------------------//
+
   // Simulate code on data.
 
-#ifdef STEPPING // If the compile time flag 'STEPPING' is set.
+#ifdef STEPPING // If the compile time flag 'STEPPING' is set (default).
 
   // Buffers for printing step information.
 
@@ -214,6 +233,10 @@ int main(int argc, char **argv) {
 
 #endif
 
+  //==========================================================================//
+
+  // Run the emulation until we get to a self-loop or reach undefined code.
+
   while (reti.PC < shadow.code) {
 
     const unsigned PC = reti.PC;
@@ -240,24 +263,28 @@ int main(int argc, char **argv) {
 
     // Get content of source register and its symbolic name (in any case).
 
+    const unsigned IN1 = reti.IN1;
+    const unsigned IN2 = reti.IN2;
+    const unsigned ACC = reti.ACC;
+
     unsigned S = 0;
     const char *S_symbol = 0;
 
     switch (I27to26) {
     case BV2(0, 0):
-      S = reti.PC;
+      S = PC;
       S_symbol = "PC";
       break;
     case BV2(0, 1):
-      S = reti.IN1;
+      S = IN1;
       S_symbol = "IN1";
       break;
     case BV2(1, 0):
-      S = reti.IN2;
+      S = IN2;
       S_symbol = "IN2";
       break;
     case BV2(1, 1):
-      S = reti.ACC;
+      S = ACC;
       S_symbol = "ACC";
       break;
     }
@@ -298,7 +325,7 @@ int main(int argc, char **argv) {
     unsigned result = 0;       // Computed, loaded, or stored result.
     unsigned address = 0;      // Address to read from or write to memory.
 
-    unsigned *M = reti.data;
+    unsigned *M = reti.data; // Also used couple of times.
 
 #ifdef STEPPING
 
@@ -323,8 +350,22 @@ int main(int argc, char **argv) {
 	D_write = true;
 	break;
       case BV4(0, 1, 0, 1): // LOADIN1 D i
+	address = IN1 + unsigned_immediate;
+	INSTRUCTION("LOADIN1 %s %u", S_symbol, i);
+	ACTION("%s = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
+	       S_symbol, i, IN1, i, address, result);
+	result = M[address];
+	M_read = true;
+	D_write = true;
 	break;
       case BV4(0, 1, 1, 0): // LOADIN2 D i
+	address = IN2 + unsigned_immediate;
+	INSTRUCTION("LOADIN2 %s %u", S_symbol, i);
+	ACTION("%s = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
+	       S_symbol, i, IN2, i, address, result);
+	result = M[address];
+	M_read = true;
+	D_write = true;
 	break;
       case BV4(0, 1, 1, 1): // LOADI D i
 	result = unsigned_immediate;
@@ -339,16 +380,32 @@ int main(int argc, char **argv) {
       switch (I31to28) {
       case BV4(1, 0, 0, 0): // STORE i
 	address = unsigned_immediate;
-	result = S;
+	result = ACC;
 	INSTRUCTION("STORE %u", i);
 	ACTION("M(<%u>) = M(0x%x) = 0x%x", i, address, result);
 	M_write = true;
 	break;
       case BV4(1, 0, 0, 1): // STOREIN1 i
+	address = IN1 + unsigned_immediate;
+	result = ACC;
+	INSTRUCTION("STOREIN1 %u", i);
+	ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+	       address, i, IN1, i, result);
+	M_write = true;
 	break;
       case BV4(1, 0, 1, 0): // STOREIN2 i
+	address = IN2 + unsigned_immediate;
+	result = ACC;
+	INSTRUCTION("STOREIN2 %u", i);
+	ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+	       address, i, IN2, i, result);
+	M_write = true;
 	break;
       case BV4(1, 0, 1, 1): // MOVE S D
+	result = S;
+	INSTRUCTION("MOVE %s %s", S_symbol, D_symbol);
+	ACTION("%s = %s = 0x%x", D_symbol, S_symbol, result);
+	D_write = true;
 	break;
       }
       break; // end of Store Instructions
@@ -433,7 +490,7 @@ int main(int argc, char **argv) {
 	fputs("PC       IN1      IN2      ACC      ", stdout);
 	fputs("INSTRUCTION           ACTION\n", stdout);
       }
-      printf("%08x %08x %08x %08x ", reti.PC, reti.IN1, reti.IN2, reti.ACC);
+      printf("%08x %08x %08x %08x ", PC, IN1, IN2, ACC);
       printf("%-21s", instruction);
       fputs(" ", stdout);
       fputs(action, stdout);
