@@ -324,6 +324,7 @@ int main(int argc, char **argv) {
     bool M_read = false;       // Default is not to read from memory.
     unsigned result = 0;       // Computed, loaded, or stored result.
     unsigned address = 0;      // Address to read from or write to memory.
+    unsigned loaded;	       // Loaded from memory.
 
     unsigned *M = reti.data; // Also used couple of times.
 
@@ -411,6 +412,7 @@ int main(int argc, char **argv) {
       break; // end of Store Instructions
 
     case BV2(0, 0): // Compute Instructions
+      unsigned D = *D_pointer;
       switch (I31to26) {
       case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
 	result = S - signed_immediate;
@@ -448,14 +450,56 @@ int main(int argc, char **argv) {
 	D_write = true;
 	break;
       case BV6(0, 0, 1, 0, 1, 0): // SUB D i
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D - loaded;
+	INSTRUCTION("SUB %s %u", S_symbol, i);
+	ACTION("%s = %s - M(<0x%x>) = %s - [0x%x] = %d - %d = %d = [0x%x]",
+	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
+	       (int)result, result);
+	D_write = true;
+	M_read = true;
 	break;
       case BV6(0, 0, 1, 0, 1, 1): // ADD D i
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D + loaded;
+	INSTRUCTION("ADD %s %u", S_symbol, i);
+	ACTION("%s = %s + M(<0x%x>) = %s + [0x%x] = %d + %d = %d = [0x%x]",
+	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
+	       (int)result, result);
+	D_write = true;
+	M_read = true;
 	break;
       case BV6(0, 0, 1, 1, 0, 0): // OPLUS D i
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D ^ loaded;
+	INSTRUCTION("OPLUS %s 0x%x", S_symbol, i);
+	ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x",
+	       D_symbol, D_symbol, i, D, loaded, result);
+	D_write = true;
+	M_read = true;
 	break;
       case BV6(0, 0, 1, 1, 0, 1): // OR D i
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D | loaded;
+	INSTRUCTION("OR %s 0x%x", S_symbol, i);
+	ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x",
+	       D_symbol, D_symbol, i, D, loaded, result);
+	D_write = true;
+	M_read = true;
 	break;
       case BV6(0, 0, 1, 1, 1, 0): // AND D i
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D & loaded;
+	INSTRUCTION("AND %s 0x%x", S_symbol, i);
+	ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x",
+	       D_symbol, D_symbol, i, D, loaded, result);
+	D_write = true;
+	M_read = true;
 	break;
       }
       break; // end of Compute Instructions
