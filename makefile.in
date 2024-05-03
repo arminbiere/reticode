@@ -1,9 +1,9 @@
 COMPILE=@COMPILE@
-all: emureti asreti
+all: emreti asreti
 asreti: asreti.c makefile
 	$(COMPILE) -o $@ $<
-emureti: emureti.c makefile
+emreti: emreti.c makefile
 	$(COMPILE) -o $@ $<
 clean:
-	rm -f emureti asreti makefile
+	rm -f emreti asreti makefile
 .PHONY: all clean

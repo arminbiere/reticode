@@ -1,7 +1,7 @@
 #!/bin/sh
 usage() {
 cat <<EOF
-usage: configure [-h | --help] [-g | --debug]
+usage: configure [-h | --help] [-g | --debug] [-n | --no-stepping]
 EOF
 }
 die () {
@@ -12,11 +12,13 @@ msg () {
   echo "[configure] $*"
 }
 debug=no
+stepping=yes
 while [ $# -gt 0 ]
 do
   case "$1" in
     -h | --help) usage; exit 0;;
     -g | --debug) debug=yes;;
+    -n | --no-stepping) stepping=no;;
     *) die "invalid option '$1' (try '-h')";;
   esac
   shift
@@ -28,6 +30,7 @@ then
 else
   COMPILE="$COMPILE -O3 -DNDEBUG"
 fi
+[ $stepping = yes ] && COMPILE="$COMPILE -DSTEPPING"
 msg "compiling with '$COMPILE'"
 sed -e "s#@COMPILE@#$COMPILE#" makefile.in > makefile
 msg "generated 'makefile' (run 'make')"

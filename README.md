@@ -1,4 +1,5 @@
 ReTI-Code
 ---------
 
-A simple simulator and assembler for the ReTI processor.
+A simple simulator `emreti`, assembler `asreti` and `disreti`
+for the ReTI processor.
