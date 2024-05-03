@@ -23,7 +23,7 @@ static bool close_output_file;
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {
-  fputs("encdata: error: ", stderr);
+  fputs("enchex: error: ", stderr);
   va_list ap;
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
@@ -35,7 +35,7 @@ static void die(const char *fmt, ...) {
 static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
-  fprintf(stderr, "encdata: parse error: at line %zu in '%s': ",
+  fprintf(stderr, "enchex: parse error: at line %zu in '%s': ",
 	  lineno - (last_input_char == '\n'), input_path);
   va_list ap;
   va_start(ap, fmt);
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   for (int i = 1; i != argc; i++) {
     const char *arg = argv[i];
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-      printf("usage: encdata [ <input> [ <output> ] ]\n");
+      printf("usage: enchex [ <input> [ <output> ] ]\n");
       exit(0);
     } else if (arg[0] == '-')
       die("invalid option '%s' (try '-h')", arg);
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   if (!output_path && isatty(2))
     die("will not write binary data to terminal");
   else if (!output_path)
-    output_path = "<stdou>", output_file = stdout;
+    output_path = "<stdout>", output_file = stdout;
   else if (!(output_file = fopen("output_path", "w")))
     die("could not write output file '%s'", output_path);
   else
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
     if (ch != '\n')
       error("expected new-line");
 
-    // Write the word in little endian encoding to the output file.
+    // Write the data word in little endian encoding to the output file.
 
     for (unsigned byte = 0; byte != 4; byte++) {
       const unsigned shift = byte * 8;
