@@ -1,11 +1,17 @@
 COMPILE=@COMPILE@
-all: emreti asreti
+all: asreti decdata encdata emreti
 asreti: asreti.c makefile
+	$(COMPILE) -o $@ $<
+decdata: decdata.c makefile
+	$(COMPILE) -o $@ $<
+encdata: encdata.c makefile
 	$(COMPILE) -o $@ $<
 emreti: emreti.c makefile
 	$(COMPILE) -o $@ $<
+format:
+	clang-format -i *.c
 clean:
-	rm -f emreti asreti makefile
+	rm -f asreti decdata encdata emreti makefile
 test: emreti
 	make -C test/example1
-.PHONY: all clean test
+.PHONY: all clean format test
