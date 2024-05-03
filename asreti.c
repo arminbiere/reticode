@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
 
   // Open and write code file.
 
-  if (!code_path && isatty(2))
+  if (!code_path && isatty(1))
     die("will not write binary code to terminal");
   else if (!code_path)
     code_path = "<stdout>", code_file = stdout;

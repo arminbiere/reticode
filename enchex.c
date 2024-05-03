@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
 
   // Open and write output file.
 
-  if (!output_path && isatty(2))
+  if (!output_path && isatty(1))
     die("will not write binary data to terminal");
   else if (!output_path)
     output_path = "<stdout>", output_file = stdout;
