@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -11,6 +12,7 @@
 static size_t lineno = 1;
 static int last_read_char;
 static const char *assembler_path;
+static bool close_assembler_file;
 static FILE *assembler_file;
 
 static const char *code_path;
@@ -116,11 +118,13 @@ int main(int argc, char **argv) {
   }
 
   if (!assembler_path)
-    die("assembler file missing");
-  if (!file_exists(assembler_path))
+    assembler_path = "<stdin>", assembler_file = stdin;
+  else if (!file_exists(assembler_path))
     die("could not find assembler file '%s'", assembler_path);
   if (!(assembler_file = fopen(assembler_path, "r")))
     die("could not read assembler file '%s'", assembler_path);
+  else
+    close_assembler_file = true;
 
   if (!code_path)
     code_path = "<stdout>", code_file = stdout;
@@ -132,9 +136,9 @@ int main(int argc, char **argv) {
   for (;;) {
     int ch = read_char();
     bool parse_source = false;
-    bool parse_register = true;
+    bool parse_destination = true;
     bool parse_immediate = true;
-    enum code code = NOP;
+    unsigned code = NOP;
     switch (ch) {
     case ' ':
     case '\t':
@@ -146,25 +150,94 @@ int main(int argc, char **argv) {
 	if (ch == EOF)
 	  error("unexpected end-of-file in comment");
       continue;
+    case 'A':
+      ch = read_char();
+      if (ch == 'D') {
+	ch = read_char();
+	if (ch == 'D') {
+	  ch = read_char();
+	  if (ch == ' ')
+	    code = ADD; // D i
+	  else if (ch == 'I') {
+	    code = ADDI; // D i
+	    ch = read_char();
+	  } else
+	    invalid_instruction();
+	} else
+	  invalid_instruction();
+      } else if (ch == 'N') {
+	ch = read_char();
+	if (ch == 'D') {
+	  ch = read_char();
+	  if (ch == ' ')
+	    code = AND; // D i
+	  else if (ch == 'I') {
+	    code = ANDI; // D i
+	    ch = read_char();
+	  } else
+	    invalid_instruction();
+	} else
+	  invalid_instruction();
+      } else
+	invalid_instruction();
+      break;
+    case 'J':
+      for (const char *p = "UMP"; *p; p++)
+	if (*p != read_char())
+	  invalid_instruction();
+      ch = read_char();
+      if (ch == ' ')
+	code = JUMP; // i
+      else if (ch == '>') {
+	ch = read_char();
+	if (ch == ' ')
+	  code = JUMPGT; // i
+	else if (ch == '=') {
+	  code = JUMPGE; // i
+	  ch = read_char();
+	} else
+	  invalid_instruction();
+      } else if (ch == '=') {
+	code = JUMPEQ; // i
+	ch = read_char();
+      } else if (ch == '<') {
+	if (ch == ' ')
+	  code = JUMPLT; // i
+	else if (ch == '=') {
+	  code = JUMPLE; // i
+	  ch = read_char();
+	} else
+	  invalid_instruction();
+      } else if (ch == '!') {
+	ch = read_char();
+	if (ch == '=') {
+	  code = JUMPNE; // i
+	  ch = read_char();
+	} else
+	  invalid_instruction();
+      } else
+	invalid_instruction();
+      parse_destination = false;
+      break;
     case 'L':
       for (const char *p = "OAD"; *p; p++)
 	if (*p != read_char())
 	  invalid_instruction();
       ch = read_char();
       if (ch == ' ')
-	code = encode4(0, 1, 0, 0); // LOAD D i
+	code = LOAD; // D i
       else if (ch == 'I') {
 	ch = read_char();
 	if (ch == ' ')
-	  code = encode4(0, 1, 1, 1); // LOADI D i
+	  code = LOADI; // D i
 	else {
 	  ch = read_char();
 	  if (ch == 'N') {
 	    ch = read_char();
 	    if (ch == '1')
-	      code = encode4(0, 1, 0, 1); // LOADIN1 D i
+	      code = LOADIN1; // D i
 	    else if (ch == '2')
-	      code = encode4(0, 1, 1, 0); // LOADIN2 D i
+	      code = LOADIN2; // D i
 	    else
 	      invalid_instruction();
 	    ch = read_char();
@@ -174,36 +247,89 @@ int main(int argc, char **argv) {
       } else
 	invalid_instruction();
       break;
-    case 'S':
-      parse_register = false;
-      for (const char *p = "TORE"; *p; p++)
+    case 'M':
+      for (const char *p = "OVE"; *p; p++)
 	if (*p != read_char())
 	  invalid_instruction();
+      code = MOVE; // S D
+      parse_source = true;
+      parse_immediate = false;
       ch = read_char();
-      if (ch == ' ')
-	code = encode4(1, 0, 0, 0); // STORE i
-      else if (ch == 'I') {
-	ch = read_char();
-	if (ch == 'N') {
-	  ch = read_char();
-	  if (ch == '1')
-	    code = encode4(1, 0, 0, 1); // STOREIN1 i
-	  else if (ch == '2')
-	    code = encode4(1, 0, 1, 0); // STOREIN2 i
-	  else
+      break;
+    case 'N':
+      for (const char *p = "OP"; *p; p++)
+	if (*p != read_char())
+	  invalid_instruction();
+      code = NOP;
+      parse_destination = false;
+      parse_immediate = false;
+      break;
+    case 'O':
+      ch = read_char();
+      if (ch == 'P') {
+	for (const char *p = "LUS"; *p; p++)
+	  if (*p != read_char())
 	    invalid_instruction();
+	ch = read_char();
+	if (ch == ' ')
+	  code = OPLUS; // D i;
+	else if (ch == 'I') {
+	  code = OPLUSI; // D i;
+	  ch = read_char();
+	} else
+	  invalid_instruction();
+      } else if (ch == 'R') {
+	ch = read_char();
+	if (ch == ' ')
+	  code = OR; // D i
+	else if (ch == 'I') {
+	  code = ORI; // D i
 	  ch = read_char();
 	} else
 	  invalid_instruction();
       } else
 	invalid_instruction();
       break;
-    case 'M':
-      for (const char *p = "OVE"; *p; p++)
-	if (*p != read_char())
+    case 'S':
+      ch = read_char();
+      if (ch == 'T') {
+	parse_destination = false;
+	for (const char *p = "ORE"; *p; p++)
+	  if (*p != read_char())
+	    invalid_instruction();
+	ch = read_char();
+	if (ch == ' ')
+	  code = STORE; // i
+	else if (ch == 'I') {
+	  ch = read_char();
+	  if (ch == 'N') {
+	    ch = read_char();
+	    if (ch == '1')
+	      code = STOREIN1; // i
+	    else if (ch == '2')
+	      code = STOREIN2; // i
+	    else
+	      invalid_instruction();
+	    ch = read_char();
+	  } else
+	    invalid_instruction();
+	} else
 	  invalid_instruction();
-      code = encode4 (
-      ch = read_char ();
+      } else if (ch == 'U') {
+	ch = read_char();
+	if (ch == 'B') {
+	  ch = read_char();
+	  if (ch == ' ')
+	    code = SUB; // D i;
+	  else if (ch == 'I') {
+	    code = SUBI; // D i;
+	    ch = read_char();
+	  } else
+	    invalid_instruction();
+	} else
+	  invalid_instruction();
+      } else
+	invalid_instruction();
       break;
     case '\n':
       error("unexpected empty line");
@@ -212,15 +338,42 @@ int main(int argc, char **argv) {
       if (isprint(ch))
 	error("unexpected character '%c'", ch);
       else
-	error("unexpected character code 0x%02x", ch);
+	error("unexpected character code '0x%02x'", ch);
       break;
     }
-    if (ch != ' ')
-      invalid_instruction();
+
+    if (parse_source) {
+      if (ch != ' ')
+	invalid_instruction();
+      assert(code == MOVE);
+    }
+
+    if (parse_destination) {
+      if (ch != ' ')
+	invalid_instruction();
+    }
+
+    if (parse_immediate) {
+      if (ch != ' ')
+	invalid_instruction();
+    }
+
+    while (ch == ' ' || ch == '\t')
+      ch = read_char();
+
+    if (ch == ';') {
+      while ((ch = read_char()) != '\n')
+	if (ch == EOF)
+	  error("unexpected end-of-file in comment");
+    }
+
+    if (ch != '\n')
+      error("expected new-line");
   }
 
 DONE:
-  fclose(assembler_file);
+  if (close_assembler_file)
+    fclose(assembler_file);
   if (close_code_file)
     fclose(code_file);
 
