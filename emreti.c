@@ -572,9 +572,9 @@ int main(int argc, char **argv) {
     if (step) {
       if (!steps++) {
         fputs("PC       IN1      IN2      ACC      ", stdout);
-        fputs("INSTRUCTION           ACTION\n", stdout);
+        fputs("CODE     INSTRUCTION           ACTION\n", stdout);
       }
-      printf("%08x %08x %08x %08x ", PC, IN1, IN2, ACC);
+      printf("%08x %08x %08x %08x %08x ", PC, IN1, IN2, ACC, I);
       printf("%-21s", instruction);
       fputs(" ", stdout);
       fputs(action, stdout);

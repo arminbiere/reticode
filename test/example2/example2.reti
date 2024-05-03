@@ -1,0 +1,5 @@
+; The same example as in 'example1' but in ReTI assembler.
+LOADI ACC 1	; ACC = 1
+NOP		; do nothing
+ADDI ACC 1	; ACC++ thus becomes 2
+STORE 3		; data[3] = ACC thus 2
