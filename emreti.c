@@ -513,7 +513,6 @@ int main(int argc, char **argv) {
       switch (I31to27) {
       case BV5(1, 1, 0, 0, 0): // NOP
 	INSTRUCTION("NOP");
-	ACTION(" ");
 	break;
       case BV5(1, 1, 0, 0, 1): // JUMP> i
 	taken = ((int)ACC > 0);
@@ -560,11 +559,12 @@ int main(int argc, char **argv) {
 	else
 	  ACTION("PC = PC + [0x%x] = %u %c %d = %u = 0x%x", i, PC,
 		 immediate_sign_char, abs_immediate, PC_next, PC_next);
-      } else {
+      } else if (comparison) {
 	assert(comparison);
 	assert(PC_next == PC + 1);
 	ACTION("no jump as %d = [0x%x] = ACC %s 0", ACC, ACC, comparison);
-      }
+      } else
+	ACTION("%s", "");
       break; // end of Jump Instructions
     }
 
