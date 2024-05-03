@@ -113,10 +113,10 @@ int main(int argc, char **argv) {
       step = true;
 #else
       die("invalid option '%s' "
-          "(configured and compiled without stepping support)",
-          arg);
+	  "(configured and compiled without stepping support)",
+	  arg);
 #endif
-    } else if (arg[0] == '-')
+    } else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (!code_path)
       code_path = arg;
@@ -124,17 +124,12 @@ int main(int argc, char **argv) {
       data_path = arg;
     else
       die("more than two files specified '%s', '%s' and '%s' (try '-h')",
-          code_path, data_path, arg);
+	  code_path, data_path, arg);
   }
 
-  if (!code_path)
-    die("no code file specified");
-  if (!data_path)
-    die("no data file specified");
-  if (!file_exists(code_path))
-    die("code file '%s' does not exist", code_path);
-  if (!file_exists(data_path))
-    die("data file '%s' does not exist", data_path);
+  if (code_path && data_path)
+    if (!strcmp(code_path, "-") && !strcmp(data_path, "-"))
+      die("can not read both code and data from '<stdin>'");
 
   //--------------------------------------------------------------------------//
 
@@ -159,44 +154,68 @@ int main(int argc, char **argv) {
 
   //--------------------------------------------------------------------------//
 
-  // Read code file.
+  // Allocate code, data and valid memory.
 
-  FILE *code_file = fopen(code_path, "r");
-  if (!code_file)
-    die("could not read code file '%s'", code_path);
   reti.code = malloc(CAPACITY * sizeof *reti.code);
   if (!reti.code)
-    die("could not allocate code");
+    die("can not allocate code");
   shadow.code = 0;
-  unsigned word;
-  while (fread(&word, sizeof word, 1, code_file) == 1)
-    if (shadow.code == CAPACITY)
-      die("capacity of code area reached");
-    else
-      reti.code[shadow.code++] = word;
-  fclose(code_file);
 
-  // Read data file and set valid memory area.
+  reti.data = malloc(CAPACITY * sizeof *reti.data);
+  if (!reti.data)
+    die("can not allocate data");
+  shadow.data = 0;
 
   shadow.valid = calloc(CAPACITY, sizeof *shadow.valid);
   if (!shadow.valid)
-    die("could not allocate valid");
-  FILE *data_file = fopen(data_path, "r");
-  if (!data_file)
-    die("could not read data file '%s'", data_path);
-  reti.data = malloc(CAPACITY * sizeof *reti.data);
-  if (!reti.data)
-    die("could not allocate data");
-  shadow.data = 0;
-  while (fread(&word, sizeof word, 1, data_file) == 1)
-    if (shadow.data == CAPACITY)
-      die("capacity of data area reached");
-    else {
-      shadow.valid[shadow.data] = true;
-      reti.data[shadow.data] = word;
-      shadow.data++;
-    }
-  fclose(data_file);
+    die("can not allocate valid bit-map");
+
+  // Read code file.
+
+  {
+    FILE *code_file = 0;
+    bool close_code_file = false;
+    if (!code_path || !strcmp(code_path, "-"))
+      code_path = "<stdin>", code_file = stdin;
+    else if (!file_exists(code_path))
+      die("code file '%s' does not exist", code_path);
+    else if (!(code_file = fopen(code_path, "r")))
+      die("can not read code file '%s'", code_path);
+    else
+      close_code_file = true;
+    unsigned word;
+    while (fread(&word, sizeof word, 1, code_file) == 1)
+      if (shadow.code == CAPACITY)
+	die("capacity of code area reached");
+      else
+	reti.code[shadow.code++] = word;
+    if (close_code_file)
+      fclose(code_file);
+  }
+
+  // Read data file.
+
+  if (data_path) {
+    FILE *data_file = 0;
+    bool close_data_file = false;
+    if (!strcmp(data_path, "-"))
+      data_path = "<stdin>", data_file = stdin;
+    else if (!file_exists(data_path))
+      die("data file '%s' does not exist", data_path);
+    else if (!(data_file = fopen(data_path, "r")))
+      die("can not read data file '%s'", data_path);
+    unsigned word;
+    while (fread(&word, sizeof word, 1, data_file) == 1)
+      if (shadow.data == CAPACITY)
+	die("capacity of data area reached");
+      else {
+	shadow.valid[shadow.data] = true;
+	reti.data[shadow.data] = word;
+	shadow.data++;
+      }
+    if (close_data_file)
+      fclose(data_file);
+  }
 
   //--------------------------------------------------------------------------//
 
@@ -242,7 +261,7 @@ int main(int argc, char **argv) {
     const unsigned PC = reti.PC;
     if (PC >= shadow.code) {
       warn("stopping at undefined 'code[0x%08x]' above 0x%08x", PC,
-           (unsigned)(shadow.code - 1));
+	   (unsigned)(shadow.code - 1));
       break;
     }
     const unsigned I = reti.code[PC];
@@ -317,8 +336,8 @@ int main(int argc, char **argv) {
     }
 
 #ifndef STEPPING
-    (void)S_symbol;
-    (void)D_symbol;
+    (void)S_symbol; // To avoid compiler warning to not using 'S_symbol'.
+    (void)D_symbol; // To avoid compiler warning to not using 'D_symbol'.
 #endif
 
     unsigned PC_next = PC + 1; // Default is to increase PC.
@@ -327,7 +346,7 @@ int main(int argc, char **argv) {
     bool M_read = false;       // Default is not to read from memory.
     unsigned result = 0;       // Computed, loaded, or stored result.
     unsigned address = 0;      // Address to read from or write to memory.
-    unsigned loaded;           // Loaded from memory.
+    unsigned loaded;	       // Loaded from memory.
     bool taken = false;
     char *comparison = 0;
 
@@ -348,71 +367,71 @@ int main(int argc, char **argv) {
     case BV2(0, 1): // Load Instructions
       switch (I31to28) {
       case BV4(0, 1, 0, 0): // LOAD D i
-        address = unsigned_immediate;
-        result = M[address];
-        INSTRUCTION("LOAD %s %u", S_symbol, i);
-        ACTION("%s = M(<0x%x>) = M(0x%x) = 0x%x", S_symbol, i, address, result);
-        M_read = true;
-        D_write = true;
-        break;
+	address = unsigned_immediate;
+	result = M[address];
+	INSTRUCTION("LOAD %s %u", S_symbol, i);
+	ACTION("%s = M(<0x%x>) = M(0x%x) = 0x%x", S_symbol, i, address, result);
+	M_read = true;
+	D_write = true;
+	break;
       case BV4(0, 1, 0, 1): // LOADIN1 D i
-        address = IN1 + unsigned_immediate;
-        INSTRUCTION("LOADIN1 %s %u", S_symbol, i);
-        ACTION("%s = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
-               S_symbol, i, IN1, i, address, result);
-        result = M[address];
-        M_read = true;
-        D_write = true;
-        break;
+	address = IN1 + unsigned_immediate;
+	INSTRUCTION("LOADIN1 %s %u", S_symbol, i);
+	ACTION("%s = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
+	       S_symbol, i, IN1, i, address, result);
+	result = M[address];
+	M_read = true;
+	D_write = true;
+	break;
       case BV4(0, 1, 1, 0): // LOADIN2 D i
-        address = IN2 + unsigned_immediate;
-        INSTRUCTION("LOADIN2 %s %u", S_symbol, i);
-        ACTION("%s = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
-               S_symbol, i, IN2, i, address, result);
-        result = M[address];
-        M_read = true;
-        D_write = true;
-        break;
+	address = IN2 + unsigned_immediate;
+	INSTRUCTION("LOADIN2 %s %u", S_symbol, i);
+	ACTION("%s = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
+	       S_symbol, i, IN2, i, address, result);
+	result = M[address];
+	M_read = true;
+	D_write = true;
+	break;
       case BV4(0, 1, 1, 1): // LOADI D i
-        result = unsigned_immediate;
-        INSTRUCTION("LOADI %s %u", S_symbol, i);
-        ACTION("%s = 0x%x", S_symbol, i);
-        D_write = true;
-        break;
+	result = unsigned_immediate;
+	INSTRUCTION("LOADI %s %u", S_symbol, i);
+	ACTION("%s = 0x%x", S_symbol, i);
+	D_write = true;
+	break;
       }
       break; // end of Load Instructions
 
     case BV2(1, 0): // Store Instructions
       switch (I31to28) {
       case BV4(1, 0, 0, 0): // STORE i
-        address = unsigned_immediate;
-        result = ACC;
-        INSTRUCTION("STORE %u", i);
-        ACTION("M(<%u>) = M(0x%x) = 0x%x", i, address, result);
-        M_write = true;
-        break;
+	address = unsigned_immediate;
+	result = ACC;
+	INSTRUCTION("STORE %u", i);
+	ACTION("M(<%u>) = M(0x%x) = 0x%x", i, address, result);
+	M_write = true;
+	break;
       case BV4(1, 0, 0, 1): // STOREIN1 i
-        address = IN1 + unsigned_immediate;
-        result = ACC;
-        INSTRUCTION("STOREIN1 %u", i);
-        ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
-               address, i, IN1, i, result);
-        M_write = true;
-        break;
+	address = IN1 + unsigned_immediate;
+	result = ACC;
+	INSTRUCTION("STOREIN1 %u", i);
+	ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+	       address, i, IN1, i, result);
+	M_write = true;
+	break;
       case BV4(1, 0, 1, 0): // STOREIN2 i
-        address = IN2 + unsigned_immediate;
-        result = ACC;
-        INSTRUCTION("STOREIN2 %u", i);
-        ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
-               address, i, IN2, i, result);
-        M_write = true;
-        break;
+	address = IN2 + unsigned_immediate;
+	result = ACC;
+	INSTRUCTION("STOREIN2 %u", i);
+	ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+	       address, i, IN2, i, result);
+	M_write = true;
+	break;
       case BV4(1, 0, 1, 1): // MOVE S D
-        result = S;
-        INSTRUCTION("MOVE %s %s", S_symbol, D_symbol);
-        ACTION("%s = %s = 0x%x", D_symbol, S_symbol, result);
-        D_write = true;
-        break;
+	result = S;
+	INSTRUCTION("MOVE %s %s", S_symbol, D_symbol);
+	ACTION("%s = %s = 0x%x", D_symbol, S_symbol, result);
+	D_write = true;
+	break;
       }
       break; // end of Store Instructions
 
@@ -420,159 +439,159 @@ int main(int argc, char **argv) {
       unsigned D = *D_pointer;
       switch (I31to26) {
       case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
-        result = S - signed_immediate;
-        INSTRUCTION("SUBI %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s - [0x%x] = %d - %d = %d = [0x%x]", D_symbol, S_symbol,
-               i, (int)S, (int)i, (int)result, result);
-        D_write = true;
-        break;
+	result = S - signed_immediate;
+	INSTRUCTION("SUBI %s %d", S_symbol, signed_immediate);
+	ACTION("%s = %s - [0x%x] = %d - %d = %d = [0x%x]", D_symbol, S_symbol,
+	       i, (int)S, (int)i, (int)result, result);
+	D_write = true;
+	break;
       case BV6(0, 0, 0, 0, 1, 1): // ADDI D i
-        result = S + signed_immediate;
-        INSTRUCTION("ADDI %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s + [0x%x] = %d + %d = %d = [0x%x]", D_symbol, S_symbol,
-               i, (int)S, (int)i, (int)result, result);
-        D_write = true;
-        break;
+	result = S + signed_immediate;
+	INSTRUCTION("ADDI %s %d", S_symbol, signed_immediate);
+	ACTION("%s = %s + [0x%x] = %d + %d = %d = [0x%x]", D_symbol, S_symbol,
+	       i, (int)S, (int)i, (int)result, result);
+	D_write = true;
+	break;
       case BV6(0, 0, 0, 1, 0, 0): // OPLUSI D i
-        result = S ^ unsigned_immediate;
-        INSTRUCTION("OPLUSI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s ^ 0x%x = 0x%x ^ 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
-        D_write = true;
-        break;
+	result = S ^ unsigned_immediate;
+	INSTRUCTION("OPLUSI %s 0x%x", S_symbol, i);
+	ACTION("%s = %s ^ 0x%x = 0x%x ^ 0x%x = 0x%x", D_symbol, S_symbol,
+	       unsigned_immediate, S, unsigned_immediate, result);
+	D_write = true;
+	break;
       case BV6(0, 0, 0, 1, 0, 1): // ORI D i
-        result = S | unsigned_immediate;
-        INSTRUCTION("ORI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s | 0x%x = 0x%x | 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
-        D_write = true;
-        break;
+	result = S | unsigned_immediate;
+	INSTRUCTION("ORI %s 0x%x", S_symbol, i);
+	ACTION("%s = %s | 0x%x = 0x%x | 0x%x = 0x%x", D_symbol, S_symbol,
+	       unsigned_immediate, S, unsigned_immediate, result);
+	D_write = true;
+	break;
       case BV6(0, 0, 0, 1, 1, 0): // ANDI D i
-        result = S & unsigned_immediate;
-        INSTRUCTION("ANDI %s 0x%x", S_symbol, i);
-        ACTION("%s = %s & 0x%x = 0x%x & 0x%x = 0x%x", D_symbol, S_symbol,
-               unsigned_immediate, S, unsigned_immediate, result);
-        D_write = true;
-        break;
+	result = S & unsigned_immediate;
+	INSTRUCTION("ANDI %s 0x%x", S_symbol, i);
+	ACTION("%s = %s & 0x%x = 0x%x & 0x%x = 0x%x", D_symbol, S_symbol,
+	       unsigned_immediate, S, unsigned_immediate, result);
+	D_write = true;
+	break;
       case BV6(0, 0, 1, 0, 1, 0): // SUB D i
-        address = unsigned_immediate;
-        loaded = M[address];
-        result = D - loaded;
-        INSTRUCTION("SUB %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s - M(<0x%x>) = %s - [0x%x] = %d - %d = %d = [0x%x]",
-               D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
-               (int)result, result);
-        D_write = true;
-        M_read = true;
-        break;
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D - loaded;
+	INSTRUCTION("SUB %s %d", S_symbol, signed_immediate);
+	ACTION("%s = %s - M(<0x%x>) = %s - [0x%x] = %d - %d = %d = [0x%x]",
+	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
+	       (int)result, result);
+	D_write = true;
+	M_read = true;
+	break;
       case BV6(0, 0, 1, 0, 1, 1): // ADD D i
-        address = unsigned_immediate;
-        loaded = M[address];
-        result = D + loaded;
-        INSTRUCTION("ADD %s %d", S_symbol, signed_immediate);
-        ACTION("%s = %s + M(<0x%x>) = %s + [0x%x] = %d + %d = %d = [0x%x]",
-               D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
-               (int)result, result);
-        D_write = true;
-        M_read = true;
-        break;
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D + loaded;
+	INSTRUCTION("ADD %s %d", S_symbol, signed_immediate);
+	ACTION("%s = %s + M(<0x%x>) = %s + [0x%x] = %d + %d = %d = [0x%x]",
+	       D_symbol, D_symbol, i, D_symbol, loaded, (int)D, (int)loaded,
+	       (int)result, result);
+	D_write = true;
+	M_read = true;
+	break;
       case BV6(0, 0, 1, 1, 0, 0): // OPLUS D i
-        address = unsigned_immediate;
-        loaded = M[address];
-        result = D ^ loaded;
-        INSTRUCTION("OPLUS %s 0x%x", S_symbol, i);
-        ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x", D_symbol, D_symbol,
-               i, D, loaded, result);
-        D_write = true;
-        M_read = true;
-        break;
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D ^ loaded;
+	INSTRUCTION("OPLUS %s 0x%x", S_symbol, i);
+	ACTION("%s = %s ^ M(<0x%x>) = 0x%x ^ 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
+	D_write = true;
+	M_read = true;
+	break;
       case BV6(0, 0, 1, 1, 0, 1): // OR D i
-        address = unsigned_immediate;
-        loaded = M[address];
-        result = D | loaded;
-        INSTRUCTION("OR %s 0x%x", S_symbol, i);
-        ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x", D_symbol, D_symbol,
-               i, D, loaded, result);
-        D_write = true;
-        M_read = true;
-        break;
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D | loaded;
+	INSTRUCTION("OR %s 0x%x", S_symbol, i);
+	ACTION("%s = %s | M(<0x%x>) = 0x%x | 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
+	D_write = true;
+	M_read = true;
+	break;
       case BV6(0, 0, 1, 1, 1, 0): // AND D i
-        address = unsigned_immediate;
-        loaded = M[address];
-        result = D & loaded;
-        INSTRUCTION("AND %s 0x%x", S_symbol, i);
-        ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x", D_symbol, D_symbol,
-               i, D, loaded, result);
-        D_write = true;
-        M_read = true;
-        break;
+	address = unsigned_immediate;
+	loaded = M[address];
+	result = D & loaded;
+	INSTRUCTION("AND %s 0x%x", S_symbol, i);
+	ACTION("%s = %s & M(<0x%x>) = 0x%x & 0x%x = 0x%x", D_symbol, D_symbol,
+	       i, D, loaded, result);
+	D_write = true;
+	M_read = true;
+	break;
       }
       break; // end of Compute Instructions
 
     case BV2(1, 1): // Jump Instructions
       switch (I31to27) {
       case BV5(1, 1, 0, 0, 0): // NOP
-        INSTRUCTION("NOP");
-        break;
+	INSTRUCTION("NOP");
+	break;
       case BV5(1, 1, 0, 0, 1): // JUMP> i
-        taken = ((int)ACC > 0);
-        comparison = taken ? ">" : "<=";
-        INSTRUCTION("JUMP> %d", signed_immediate);
-        break;
+	taken = ((int)ACC > 0);
+	comparison = taken ? ">" : "<=";
+	INSTRUCTION("JUMP> %d", signed_immediate);
+	break;
       case BV5(1, 1, 0, 1, 0): // JUMP= i
-        taken = ((int)ACC == 0);
-        comparison = taken ? "=" : "!=";
-        INSTRUCTION("JUMP= %d", signed_immediate);
-        break;
+	taken = ((int)ACC == 0);
+	comparison = taken ? "=" : "!=";
+	INSTRUCTION("JUMP= %d", signed_immediate);
+	break;
       case BV5(1, 1, 0, 1, 1): // JUMP>= i
-        taken = ((int)ACC >= 0);
-        comparison = taken ? ">=" : "<";
-        INSTRUCTION("JUMP>= %d", signed_immediate);
-        break;
+	taken = ((int)ACC >= 0);
+	comparison = taken ? ">=" : "<";
+	INSTRUCTION("JUMP>= %d", signed_immediate);
+	break;
       case BV5(1, 1, 1, 0, 0): // JUMP< i
-        taken = ((int)ACC < 0);
-        comparison = taken ? "<" : ">=";
-        INSTRUCTION("JUMP< %d", signed_immediate);
-        break;
+	taken = ((int)ACC < 0);
+	comparison = taken ? "<" : ">=";
+	INSTRUCTION("JUMP< %d", signed_immediate);
+	break;
       case BV5(1, 1, 1, 0, 1): // JUMP!= i
-        taken = ((int)ACC != 0);
-        comparison = taken ? "!=" : "=";
-        INSTRUCTION("JUMP!= %d", signed_immediate);
-        break;
+	taken = ((int)ACC != 0);
+	comparison = taken ? "!=" : "=";
+	INSTRUCTION("JUMP!= %d", signed_immediate);
+	break;
       case BV5(1, 1, 1, 1, 0): // JUMP<= i
-        taken = ((int)ACC <= 0);
-        comparison = taken ? "<=" : ">";
-        INSTRUCTION("JUMP<= %d", signed_immediate);
-        break;
+	taken = ((int)ACC <= 0);
+	comparison = taken ? "<=" : ">";
+	INSTRUCTION("JUMP<= %d", signed_immediate);
+	break;
       case BV5(1, 1, 1, 1, 1): // JUMP i
-        taken = true;
-        INSTRUCTION("JUMP %d", signed_immediate);
-        break;
+	taken = true;
+	INSTRUCTION("JUMP %d", signed_immediate);
+	break;
       }
       if (taken) {
-        PC_next = PC + signed_immediate;
-        if (comparison)
-          ACTION("next PC = PC + [0x%x] = %u %c %d = %u = 0x%x "
-                 "as %d = [0x%x] = ACC %s 0",
-                 i, PC, immediate_sign_char, abs_immediate, PC_next, PC_next,
-                 (int)ACC, ACC, comparison);
-        else
-          ACTION("PC = PC + [0x%x] = %u %c %d = %u = 0x%x", i, PC,
-                 immediate_sign_char, abs_immediate, PC_next, PC_next);
+	PC_next = PC + signed_immediate;
+	if (comparison)
+	  ACTION("next PC = PC + [0x%x] = %u %c %d = %u = 0x%x "
+		 "as %d = [0x%x] = ACC %s 0",
+		 i, PC, immediate_sign_char, abs_immediate, PC_next, PC_next,
+		 (int)ACC, ACC, comparison);
+	else
+	  ACTION("PC = PC + [0x%x] = %u %c %d = %u = 0x%x", i, PC,
+		 immediate_sign_char, abs_immediate, PC_next, PC_next);
       } else if (comparison) {
-        assert(comparison);
-        assert(PC_next == PC + 1);
-        ACTION("no jump as %d = [0x%x] = ACC %s 0", ACC, ACC, comparison);
+	assert(comparison);
+	assert(PC_next == PC + 1);
+	ACTION("no jump as %d = [0x%x] = ACC %s 0", ACC, ACC, comparison);
       } else
-        ACTION("%s", "");
+	ACTION("%s", "");
       break; // end of Jump Instructions
     }
 
 #ifdef STEPPING
     if (step) {
       if (!steps++) {
-        fputs("PC       IN1      IN2      ACC      ", stdout);
-        fputs("CODE     INSTRUCTION           ACTION\n", stdout);
+	fputs("PC       IN1      IN2      ACC      ", stdout);
+	fputs("CODE     INSTRUCTION           ACTION\n", stdout);
       }
       printf("%08x %08x %08x %08x %08x ", PC, IN1, IN2, ACC, I);
       printf("%-21s", instruction);
@@ -585,7 +604,7 @@ int main(int argc, char **argv) {
 
     if (M_read) {
       if (address >= shadow.data || !shadow.valid[address])
-        warn("read uninitialized 'data[0x%x]'", address);
+	warn("read uninitialized 'data[0x%x]'", address);
     }
 
     assert(!D_write || !M_write);
@@ -597,7 +616,7 @@ int main(int argc, char **argv) {
       *D_pointer = result;
 
       if (D_pointer == &reti.PC)
-        PC_next = result;
+	PC_next = result;
     }
 
     // Then write result to memory if written.
@@ -605,15 +624,15 @@ int main(int argc, char **argv) {
     if (M_write) {
 
       if (address >= CAPACITY)
-        die("can not write 'data[0x%x]' above address 0x%x", address,
-            (unsigned)(CAPACITY - 1));
+	die("can not write 'data[0x%x]' above address 0x%x", address,
+	    (unsigned)(CAPACITY - 1));
 
       // Written data becomes valid.
 
       if (!shadow.valid[address]) {
-        shadow.valid[address] = true;
-        if (address >= shadow.data)
-          shadow.data = 1 + (size_t)address;
+	shadow.valid[address] = true;
+	if (address >= shadow.data)
+	  shadow.data = 1 + (size_t)address;
       }
 
       M[address] = result;
@@ -638,14 +657,14 @@ int main(int argc, char **argv) {
       printf("%08x %08x", (unsigned)i, word);
 #ifdef STEPPING
       if (step) {
-        for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
-          printf(" %02x", tmp & 0xff);
-        fputs(" ", stdout);
-        for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
-          int ch = tmp & 0xff;
-          printf("%c", isprint(ch) ? ch : '.');
-        }
-        printf("%10u %d\n", (unsigned)word, (int)word);
+	for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
+	  printf(" %02x", tmp & 0xff);
+	fputs(" ", stdout);
+	for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
+	  int ch = tmp & 0xff;
+	  printf("%c", isprint(ch) ? ch : '.');
+	}
+	printf("%10u %d\n", (unsigned)word, (int)word);
       }
 #endif
       fputc('\n', stdout);
