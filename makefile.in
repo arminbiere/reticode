@@ -12,7 +12,7 @@ format:
 	clang-format -i *.c
 clean:
 	rm -f asreti decbin enchex emreti makefile
-	+make -C test clean
+	+make -C tests clean
 test: all
 	make -C tests
 .PHONY: all clean format test
