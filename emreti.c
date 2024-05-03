@@ -627,20 +627,28 @@ int main(int argc, char **argv) {
       break;
   }
 
-  fputs("DATA     BYTES       ASCII UNSIGNED SIGNED\n", stdout);
+#ifdef STEPPING
+  if (step)
+    fputs("DATA     WORD     BYTES       ASCII UNSIGNED SIGNED\n", stdout);
+#endif
 
   for (size_t i = 0; i != shadow.data; i++)
     if (shadow.valid[i]) {
-      printf("%08x", (unsigned)i);
       const unsigned word = reti.data[i];
-      for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
-        printf(" %02x", tmp & 0xff);
-      fputs(" ", stdout);
-      for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
-        int ch = tmp & 0xff;
-        printf("%c", isprint(ch) ? ch : '.');
+      printf("%08x %08x", (unsigned)i, word);
+#ifdef STEPPING
+      if (step) {
+        for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
+          printf(" %02x", tmp & 0xff);
+        fputs(" ", stdout);
+        for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8) {
+          int ch = tmp & 0xff;
+          printf("%c", isprint(ch) ? ch : '.');
+        }
+        printf("%10u %d\n", (unsigned)word, (int)word);
       }
-      printf("%10u %d\n", (unsigned)word, (int)word);
+#endif
+      fputc('\n', stdout);
     }
 
   free(shadow.valid);
