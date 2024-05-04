@@ -30,7 +30,7 @@ then
 else
   COMPILE="$COMPILE -O3 -DNDEBUG"
 fi
-[ $stepping = yes ] && COMPILE="$COMPILE -DSTEPPING"
+[ $stepping = no ] && COMPILE="$COMPILE -DNSTEPPING"
 msg "compiling with '$COMPILE'"
 sed -e "s#@COMPILE@#$COMPILE#" makefile.in > makefile
 msg "generated 'makefile' (run 'make')"

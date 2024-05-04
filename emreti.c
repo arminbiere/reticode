@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
   //--------------------------------------------------------------------------//
   // First parse command line options.
 
-#ifdef STEPPING
+#ifndef NSTEPPING
   bool step = false;
   size_t steps = 0;
 #endif
@@ -103,13 +103,13 @@ int main(int argc, char **argv) {
     const char *arg = argv[i];
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
       fputs("usage: emreti [ -h | --help", stdout);
-#ifdef STEPPING
+#ifndef NSTEPPING
       fputs(" | -s | --step", stdout);
 #endif
       fputs(" ] <code> <data>\n", stdout);
       exit(0);
     } else if (!strcmp(arg, "-s") || !strcmp(arg, "--step")) {
-#ifdef STEPPING
+#ifndef NSTEPPING
       step = true;
 #else
       die("invalid option '%s' "
@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
 
   // Simulate code on data.
 
-#ifdef STEPPING // If the compile time flag 'STEPPING' is set (default).
+#ifndef NSTEPPING // If the compile time flag 'STEPPING' is set (default).
 
   // Buffers for printing step information.
 
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     const unsigned ACC = reti.ACC;
 
     if (PC >= shadow.code) {
-#ifdef STEPPING
+#ifndef NSTEPPING
       if (step) {
 	if (!steps)
 	  fputs("PC       IN1      IN2      ACC\n", stdout);
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
     const unsigned immediate_extension = immediate_sign_bit ? 0xff000000 : 0;
     const unsigned signed_immediate = immediate_extension | unsigned_immediate;
 
-#ifdef STEPPING
+#ifndef NSTEPPING
     const int immediate_sign_char = immediate_sign_bit ? '-' : '+';
     const int abs_immediate = abs((int)signed_immediate);
 #endif
@@ -343,9 +343,9 @@ int main(int argc, char **argv) {
       break;
     }
 
-#ifndef STEPPING
-    (void)S_symbol; // To avoid compiler warning to not using 'S_symbol'.
-    (void)D_symbol; // To avoid compiler warning to not using 'D_symbol'.
+#ifdef NSTEPPING
+    (void)S_symbol; // To avoid compiler warning not using 'S_symbol'.
+    (void)D_symbol; // To avoid compiler warning not using 'D_symbol'.
 #endif
 
     unsigned PC_next = PC + 1; // Default is to increase PC.
@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
 
     unsigned *M = reti.data; // Also used couple of times.
 
-#ifdef STEPPING
+#ifndef NSTEPPING
 
     // Just make sure to have a valid string (with terminating zero).
 
@@ -603,7 +603,7 @@ int main(int argc, char **argv) {
       break; // end of Jump Instructions
     }
 
-#ifdef STEPPING
+#ifndef NSTEPPING
     if (step) {
       if (!steps++) {
 	fputs("PC       IN1      IN2      ACC      ", stdout);
@@ -662,7 +662,7 @@ int main(int argc, char **argv) {
       break;
   }
 
-#ifdef STEPPING
+#ifndef NSTEPPING
   if (step)
     fputs("DATA     WORD     BYTES       ASCII UNSIGNED SIGNED\n", stdout);
 #endif
@@ -671,7 +671,7 @@ int main(int argc, char **argv) {
     if (shadow.valid[i]) {
       const unsigned word = reti.data[i];
       printf("%08x %08x", (unsigned)i, word);
-#ifdef STEPPING
+#ifndef NSTEPPING
       if (step) {
 	for (unsigned i = 0, tmp = word; i != 4; i++, tmp >>= 8)
 	  printf(" %02x", tmp & 0xff);

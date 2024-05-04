@@ -4,6 +4,8 @@ asreti: asreti.c makefile
 	$(COMPILE) -o $@ $<
 decbin: decbin.c makefile
 	$(COMPILE) -o $@ $<
+disreti: disreti.c makefile
+	$(COMPILE) -o $@ $<
 enchex: enchex.c makefile
 	$(COMPILE) -o $@ $<
 emreti: emreti.c makefile
@@ -11,7 +13,7 @@ emreti: emreti.c makefile
 format:
 	clang-format -i *.c
 clean:
-	rm -f asreti decbin enchex emreti makefile
+	rm -f asreti decbin disreti enchex emreti makefile
 	+make -C tests clean
 test: all
 	make -C tests
