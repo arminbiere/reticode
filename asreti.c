@@ -98,11 +98,7 @@ static void error(const char *fmt, ...) {
     while (i != size_line) {
       ch = line[i++];
       if (ch == '\t')
-	fputs("<tab>", stderr);
-      else if (ch == '\n')
-	fputs("<new-line>", stderr);
-      else if (ch == EOF)
-	fputs("<end-of-file>", stderr);
+	fputc(' ', stderr);
       else if (isprint(ch))
 	fputc(ch, stderr);
       else
@@ -119,21 +115,7 @@ static void error(const char *fmt, ...) {
 
 // Four factored out short-cuts to common parse error.
 
-static void invalid_instruction() {
-  const int ch = last_read_char;
-  if (is_symbol_character(ch))
-    error("invalid instruction");
-  else if (is_end_of_line_character(ch))
-    error("expected space after instruction");
-  else {
-    assert(ch != ' ');
-    assert(!is_parsable_character(ch));
-    if (isprint(ch))
-      error("invalid character '%c' in instruction", ch);
-    else
-      error("invalid character code '<0x%02x>' in instruction", ch);
-  }
-}
+static void invalid_instruction() { error("invalid instruction"); }
 
 // Check whether the given path points to a file.
 
@@ -168,7 +150,7 @@ static int read_char(void) {
     size_line = 0;
   if (res == '\n')
     lineno++;
-  else
+  else if (res != EOF)
     push_char(res);
   last_read_char = res;
   return res;
@@ -252,15 +234,12 @@ static unsigned parse_register(const char *type) {
   } else if (ch == 'P') {
     if (read_char() != 'C')
       error("expected 'C' after 'P'");
-    ch = read_char();
-    if (ch != ' ')
-      error("expected space after \"PC\"");
     assert(!code);
   } else if (ch == ' ')
     error("unexpected space instead of %s register", type);
   else if (is_end_of_line_character(ch))
     error("%s register missing", type);
-  else if (is_parsable_character(ch), type)
+  else if (is_symbol_character(ch), type)
     error("invalid %s register", type);
   else if (isprint(ch))
     error("invalid character '%c' expecting %s register", ch, type);
@@ -338,6 +317,7 @@ int main(int argc, char **argv) {
 
     case ' ':
     case '\t':
+    case '\n':
       continue; // Skip white space at the beginning of the line.
 
     case EOF:
@@ -350,12 +330,6 @@ int main(int argc, char **argv) {
 	if (ch == EOF)
 	  error("unexpected end-of-file in comment");
       continue;
-
-      // Two specific error situations.
-
-    case '\n':
-      error("unexpected empty line");
-      break;
 
     default:
       if (is_parsable_character(ch))
@@ -569,7 +543,9 @@ int main(int argc, char **argv) {
       code |= S << 26;
       ch = read_char();
       if (ch != ' ') {
-	if (is_parsable_character(ch))
+	if (is_end_of_line_character(ch))
+	  error("unexpected end-of-line after source register");
+	else if (is_symbol_character(ch))
 	  error("invalid source register");
 	else
 	  error("expected space after source register");
@@ -583,12 +559,14 @@ int main(int argc, char **argv) {
       ch = read_char();
       if (parse_immediate) {
 	if (ch != ' ') {
-	  if (is_parsable_character(ch))
+	  if (is_end_of_line_character(ch))
+	    error("unexpected end-of-line after destination register");
+	  else if (is_symbol_character(ch))
 	    error("invalid destination register");
 	  else
 	    error("expected space after destination register");
 	}
-      } else if (is_parsable_character(ch))
+      } else if (is_symbol_character(ch))
 	error("invalid destination register");
     }
 
@@ -670,7 +648,7 @@ int main(int argc, char **argv) {
       assert(i <= 0xffffff);
       code |= i;
 
-      if (is_parsable_character(ch))
+      if (is_symbol_character(ch))
 	error("invalid immediate");
     }
 
