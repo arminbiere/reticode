@@ -3,12 +3,17 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
-static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
+#define disassembled_reti_code_length 32
+
+static inline bool disassemble_reti_code(const unsigned code, char * str) {
   bool decode_source = false;
   bool decode_destination = true;
   bool decode_immediate = true;
+  bool hexadecimal = false;
+  bool positive = true;
   bool res = true;
   size_t length;
   {
@@ -47,25 +52,25 @@ static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
     } else if (top_two_bits == 0) {
       const unsigned next_top_four_bits = (code >> 26) & 15;
       if (next_top_four_bits == 2)
-	instruction = "SUBI", instruction_length = 4;
+	instruction = "SUBI", instruction_length = 4, positive = false;
       else if (next_top_four_bits == 3)
-	instruction = "ADDI", instruction_length = 4;
+	instruction = "ADDI", instruction_length = 4, positive = false;
       else if (next_top_four_bits == 4)
-	instruction = "OPLUSI", instruction_length = 5;
+	instruction = "OPLUSI", instruction_length = 5, hexadecimal = true;
       else if (next_top_four_bits == 5)
-	instruction = "ORI", instruction_length = 3;
+	instruction = "ORI", instruction_length = 3, hexadecimal = true;
       else if (next_top_four_bits == 6)
-	instruction = "ANDI", instruction_length = 4;
+	instruction = "ANDI", instruction_length = 4, hexadecimal = true;
       else if (next_top_four_bits == 10)
-	instruction = "SUB", instruction_length = 3;
+	instruction = "SUB", instruction_length = 3, positive = false;
       else if (next_top_four_bits == 11)
-	instruction = "ADD", instruction_length = 3;
+	instruction = "ADD", instruction_length = 3, positive = false;
       else if (next_top_four_bits == 12)
-	instruction = "OPLUS", instruction_length = 5;
+	instruction = "OPLUS", instruction_length = 5, hexadecimal = true;
       else if (next_top_four_bits == 13)
-	instruction = "OR", instruction_length = 2;
+	instruction = "OR", instruction_length = 2, hexadecimal = true;
       else if (next_top_four_bits == 14)
-	instruction = "AND", instruction_length = 3;
+	instruction = "AND", instruction_length = 3, hexadecimal = true;
       else {
 	decode_destination = decode_immediate = false;
 	instruction = "ILLEGAL", instruction_length = 6;
@@ -74,6 +79,7 @@ static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
     } else {
       const unsigned next_top_three_bits = (code >> 27) & 7;
       assert(top_two_bits == 3);
+      positive = false;
       decode_destination = false;
       if (next_top_three_bits == 0)
 	instruction = "NOP", instruction_length = 3;
@@ -100,6 +106,7 @@ static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
     length = instruction_length;
   }
   if (decode_source) {
+    str[length++] = ' ';
     const unsigned source_register_code = (code >> 26) & 3;
     size_t source_length;
     const char *source;
@@ -119,6 +126,7 @@ static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
     length += source_length;
   }
   if (decode_destination) {
+    str[length++] = ' ';
     const unsigned destination_register_code = (code >> 26) & 3;
     size_t destination_length;
     const char *destination;
@@ -138,7 +146,25 @@ static inline bool disassemble_reti_code(const unsigned code, char str[32]) {
     length += destination_length;
   }
   if (decode_immediate) {
+    str[length++] = ' ';
+    const unsigned immediate_code = code & 0xffffff;
+    int immediate_length;
+    char immediate[16];
+    if (hexadecimal)
+      immediate_length = sprintf(immediate, "0x%0x", immediate_code);
+    else if (positive)
+      immediate_length = sprintf(immediate, "%u", immediate_code);
+    else {
+      int signed_code = (int)(immediate_code << 8) >> 8;
+      immediate_length = sprintf(immediate, "%d", signed_code);
+    }
+    assert(immediate_length >= 0);
+    assert((size_t)immediate_length < sizeof immediate);
+    memcpy(str + length, immediate, immediate_length);
+    length += immediate_length;
   }
+  assert(length < disassembled_reti_code_length);
+  str[length] = 0;
   return res;
 }
 
