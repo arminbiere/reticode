@@ -680,7 +680,7 @@ int main(int argc, char **argv) {
 	  int ch = tmp & 0xff;
 	  printf("%c", isprint(ch) ? ch : '.');
 	}
-	printf("%10u %d\n", (unsigned)word, (int)word);
+	printf("%10u %d", (unsigned)word, (int)word);
       }
 #endif
       fputc('\n', stdout);

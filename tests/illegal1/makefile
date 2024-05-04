@@ -5,3 +5,4 @@ all:
 	-../../enchex illegal4.hex | ../../emreti
 	-../../enchex illegal5.hex | ../../emreti
 	-../../enchex illegal6.hex | ../../emreti
+clean:
