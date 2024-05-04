@@ -84,7 +84,7 @@ static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
   fprintf(stderr, "asreti: parse error: at line %zu in '%s': ",
-	  lineno - (last_read_char == '\n'), assembler_path);
+          lineno - (last_read_char == '\n'), assembler_path);
   va_list ap;
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
@@ -98,15 +98,15 @@ static void error(const char *fmt, ...) {
     while (i != size_line) {
       ch = line[i++];
       if (ch == '\t')
-	fputc(' ', stderr);
+        fputc(' ', stderr);
       else if (isprint(ch))
-	fputc(ch, stderr);
+        fputc(ch, stderr);
       else
-	fprintf(stderr, "<0x%02x>", ch);
+        fprintf(stderr, "<0x%02x>", ch);
     }
     if (is_symbol_character(last_read_char))
       while (is_symbol_character(ch = getc(assembler_file)))
-	putc(ch, stderr);
+        putc(ch, stderr);
     fputc('"', stderr);
   }
   fputc('\n', stderr);
@@ -245,8 +245,8 @@ static unsigned parse_register(const char *type) {
     error("invalid character '%c' expecting %s register", ch, type);
   else
     error("invalid character code '<0x%02x>' "
-	  "expecting %s register",
-	  ch, type);
+          "expecting %s register",
+          ch, type);
   return code;
 }
 
@@ -305,7 +305,7 @@ int main(int argc, char **argv) {
     // These flags determine after parsing the name of the
     // instruction whether we need to read 'S', 'D' and 'i'.
 
-    bool parse_source = false;	   // Only for 'MOVE' necessary.
+    bool parse_source = false;     // Only for 'MOVE' necessary.
     bool parse_destination = true; // Most instructions require 'D'.
     bool parse_immediate = true;   // Most instructions require 'i'.
 
@@ -327,17 +327,17 @@ int main(int argc, char **argv) {
 
     case ';':
       while ((ch = read_char()) != '\n')
-	if (ch == EOF)
-	  error("unexpected end-of-file in comment");
+        if (ch == EOF)
+          error("unexpected end-of-file in comment");
       continue;
 
     default:
       if (is_parsable_character(ch))
-	error("unexpected character '%c'", ch);
+        error("unexpected character '%c'", ch);
       else if (isprint(ch))
-	error("invalid character '%c'", ch);
+        error("invalid character '%c'", ch);
       else
-	error("invalid character code '0x%02x'", ch);
+        error("invalid character code '0x%02x'", ch);
       break;
 
       // The remaining parsing is done alphabetically with respect to the
@@ -346,105 +346,105 @@ int main(int argc, char **argv) {
     case 'A':
       ch = read_char();
       if (ch == 'D') {
-	ch = read_char();
-	if (ch == 'D') {
-	  ch = read_char();
-	  if (ch == ' ')
-	    code = ADD; // D i
-	  else if (ch == 'I') {
-	    code = ADDI; // D i
-	    ch = read_char();
-	  } else
-	    invalid_instruction();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == 'D') {
+          ch = read_char();
+          if (ch == ' ')
+            code = ADD; // D i
+          else if (ch == 'I') {
+            code = ADDI; // D i
+            ch = read_char();
+          } else
+            invalid_instruction();
+        } else
+          invalid_instruction();
       } else if (ch == 'N') {
-	ch = read_char();
-	if (ch == 'D') {
-	  ch = read_char();
-	  if (ch == ' ')
-	    code = AND; // D i
-	  else if (ch == 'I') {
-	    code = ANDI; // D i
-	    ch = read_char();
-	  } else
-	    invalid_instruction();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == 'D') {
+          ch = read_char();
+          if (ch == ' ')
+            code = AND; // D i
+          else if (ch == 'I') {
+            code = ANDI; // D i
+            ch = read_char();
+          } else
+            invalid_instruction();
+        } else
+          invalid_instruction();
       } else
-	invalid_instruction();
+        invalid_instruction();
       break;
 
     case 'J':
       for (const char *p = "UMP"; *p; p++)
-	if (*p != read_char())
-	  invalid_instruction();
+        if (*p != read_char())
+          invalid_instruction();
       ch = read_char();
       if (ch == ' ')
-	code = JUMP; // i
+        code = JUMP; // i
       else if (ch == '>') {
-	ch = read_char();
-	if (ch == ' ')
-	  code = JUMPGT; // i
-	else if (ch == '=') {
-	  code = JUMPGE; // i
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = JUMPGT; // i
+        else if (ch == '=') {
+          code = JUMPGE; // i
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else if (ch == '=') {
-	code = JUMPEQ; // i
-	ch = read_char();
+        code = JUMPEQ; // i
+        ch = read_char();
       } else if (ch == '<') {
-	ch = read_char();
-	if (ch == ' ')
-	  code = JUMPLT; // i
-	else if (ch == '=') {
-	  code = JUMPLE; // i
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = JUMPLT; // i
+        else if (ch == '=') {
+          code = JUMPLE; // i
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else if (ch == '!') {
-	ch = read_char();
-	if (ch == '=') {
-	  code = JUMPNE; // i
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == '=') {
+          code = JUMPNE; // i
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else
-	invalid_instruction();
+        invalid_instruction();
       parse_destination = false;
       break;
 
     case 'L':
       for (const char *p = "OAD"; *p; p++)
-	if (*p != read_char())
-	  invalid_instruction();
+        if (*p != read_char())
+          invalid_instruction();
       ch = read_char();
       if (ch == ' ')
-	code = LOAD; // D i
+        code = LOAD; // D i
       else if (ch == 'I') {
-	ch = read_char();
-	if (ch == ' ')
-	  code = LOADI; // D i
-	else if (ch == 'N') {
-	  ch = read_char();
-	  if (ch == '1')
-	    code = LOADIN1; // D i
-	  else if (ch == '2')
-	    code = LOADIN2; // D i
-	  else
-	    invalid_instruction();
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = LOADI; // D i
+        else if (ch == 'N') {
+          ch = read_char();
+          if (ch == '1')
+            code = LOADIN1; // D i
+          else if (ch == '2')
+            code = LOADIN2; // D i
+          else
+            invalid_instruction();
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else
-	invalid_instruction();
+        invalid_instruction();
       break;
 
     case 'M':
       for (const char *p = "OVE"; *p; p++)
-	if (*p != read_char())
-	  invalid_instruction();
+        if (*p != read_char())
+          invalid_instruction();
       code = MOVE; // S D
       parse_source = true;
       parse_immediate = false;
@@ -453,8 +453,8 @@ int main(int argc, char **argv) {
 
     case 'N':
       for (const char *p = "OP"; *p; p++)
-	if (*p != read_char())
-	  invalid_instruction();
+        if (*p != read_char())
+          invalid_instruction();
       code = NOP;
       ch = read_char();
       parse_destination = false;
@@ -464,70 +464,70 @@ int main(int argc, char **argv) {
     case 'O':
       ch = read_char();
       if (ch == 'P') {
-	for (const char *p = "LUS"; *p; p++)
-	  if (*p != read_char())
-	    invalid_instruction();
-	ch = read_char();
-	if (ch == ' ')
-	  code = OPLUS; // D i;
-	else if (ch == 'I') {
-	  code = OPLUSI; // D i;
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        for (const char *p = "LUS"; *p; p++)
+          if (*p != read_char())
+            invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = OPLUS; // D i;
+        else if (ch == 'I') {
+          code = OPLUSI; // D i;
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else if (ch == 'R') {
-	ch = read_char();
-	if (ch == ' ')
-	  code = OR; // D i
-	else if (ch == 'I') {
-	  code = ORI; // D i
-	  ch = read_char();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = OR; // D i
+        else if (ch == 'I') {
+          code = ORI; // D i
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else
-	invalid_instruction();
+        invalid_instruction();
       break;
 
     case 'S':
       ch = read_char();
       if (ch == 'T') {
-	parse_destination = false;
-	for (const char *p = "ORE"; *p; p++)
-	  if (*p != read_char())
-	    invalid_instruction();
-	ch = read_char();
-	if (ch == ' ')
-	  code = STORE; // i
-	else if (ch == 'I') {
-	  ch = read_char();
-	  if (ch == 'N') {
-	    ch = read_char();
-	    if (ch == '1')
-	      code = STOREIN1; // i
-	    else if (ch == '2')
-	      code = STOREIN2; // i
-	    else
-	      invalid_instruction();
-	    ch = read_char();
-	  } else
-	    invalid_instruction();
-	} else
-	  invalid_instruction();
+        parse_destination = false;
+        for (const char *p = "ORE"; *p; p++)
+          if (*p != read_char())
+            invalid_instruction();
+        ch = read_char();
+        if (ch == ' ')
+          code = STORE; // i
+        else if (ch == 'I') {
+          ch = read_char();
+          if (ch == 'N') {
+            ch = read_char();
+            if (ch == '1')
+              code = STOREIN1; // i
+            else if (ch == '2')
+              code = STOREIN2; // i
+            else
+              invalid_instruction();
+            ch = read_char();
+          } else
+            invalid_instruction();
+        } else
+          invalid_instruction();
       } else if (ch == 'U') {
-	ch = read_char();
-	if (ch == 'B') {
-	  ch = read_char();
-	  if (ch == ' ')
-	    code = SUB; // D i;
-	  else if (ch == 'I') {
-	    code = SUBI; // D i;
-	    ch = read_char();
-	  } else
-	    invalid_instruction();
-	} else
-	  invalid_instruction();
+        ch = read_char();
+        if (ch == 'B') {
+          ch = read_char();
+          if (ch == ' ')
+            code = SUB; // D i;
+          else if (ch == 'I') {
+            code = SUBI; // D i;
+            ch = read_char();
+          } else
+            invalid_instruction();
+        } else
+          invalid_instruction();
       } else
-	invalid_instruction();
+        invalid_instruction();
       break;
     }
 
@@ -543,12 +543,12 @@ int main(int argc, char **argv) {
       code |= S << 26;
       ch = read_char();
       if (ch != ' ') {
-	if (is_end_of_line_character(ch))
-	  error("unexpected end-of-line after source register");
-	else if (is_symbol_character(ch))
-	  error("invalid source register");
-	else
-	  error("expected space after source register");
+        if (is_end_of_line_character(ch))
+          error("unexpected end-of-line after source register");
+        else if (is_symbol_character(ch))
+          error("invalid source register");
+        else
+          error("expected space after source register");
       }
       assert(parse_destination);
     }
@@ -558,98 +558,98 @@ int main(int argc, char **argv) {
       code |= D << 24;
       ch = read_char();
       if (parse_immediate) {
-	if (ch != ' ') {
-	  if (is_end_of_line_character(ch))
-	    error("unexpected end-of-line after destination register");
-	  else if (is_symbol_character(ch))
-	    error("invalid destination register");
-	  else
-	    error("expected space after destination register");
-	}
+        if (ch != ' ') {
+          if (is_end_of_line_character(ch))
+            error("unexpected end-of-line after destination register");
+          else if (is_symbol_character(ch))
+            error("invalid destination register");
+          else
+            error("expected space after destination register");
+        }
       } else if (is_symbol_character(ch))
-	error("invalid destination register");
+        error("invalid destination register");
     }
 
     if (parse_immediate) {
       ch = read_char();
       unsigned i;
       if (ch == ' ')
-	error("unexpected space instead of immediate");
+        error("unexpected space instead of immediate");
       else if (is_end_of_line_character(ch))
-	error("immediate misssing");
+        error("immediate misssing");
       else if (ch == '-') {
-	ch = read_char();
-	if (ch == '0')
-	  error("unexpected '0' after '-'");
-	if (!isdigit(ch))
-	  error("expected digit after '-'");
-	i = (ch - '0');
-	const unsigned max_immediate = 0x800000;
-	ch = read_char();
-	if (ch == 'x') {
-	  int digit;
-	  ch = read_char();
-	  while ((digit = hexdigit(ch)) >= 0) {
-	    if (max_immediate / 16 < i)
-	      error("maximum negative immediate exceeded");
-	    i *= 16;
-	    if (max_immediate - digit < i)
-	      error("maximum negative immediate exceeded");
-	    i += digit;
-	    ch = read_char();
-	  }
-	} else {
-	  while (isdigit(ch)) {
-	    if (max_immediate / 10 < i)
-	      error("maximum negative immediate exceeded");
-	    i *= 10;
-	    int digit = ch - '0';
-	    if (max_immediate - digit < i)
-	      error("maximum negative immediate exceeded");
-	    i += digit;
-	    ch = read_char();
-	  }
-	}
-	assert(i <= max_immediate);
-	i = (~i + 1) & 0xffffff;
-	code |= i;
+        ch = read_char();
+        if (ch == '0')
+          error("unexpected '0' after '-'");
+        if (!isdigit(ch))
+          error("expected digit after '-'");
+        i = (ch - '0');
+        const unsigned max_immediate = 0x800000;
+        ch = read_char();
+        if (ch == 'x') {
+          int digit;
+          ch = read_char();
+          while ((digit = hexdigit(ch)) >= 0) {
+            if (max_immediate / 16 < i)
+              error("maximum negative immediate exceeded");
+            i *= 16;
+            if (max_immediate - digit < i)
+              error("maximum negative immediate exceeded");
+            i += digit;
+            ch = read_char();
+          }
+        } else {
+          while (isdigit(ch)) {
+            if (max_immediate / 10 < i)
+              error("maximum negative immediate exceeded");
+            i *= 10;
+            int digit = ch - '0';
+            if (max_immediate - digit < i)
+              error("maximum negative immediate exceeded");
+            i += digit;
+            ch = read_char();
+          }
+        }
+        assert(i <= max_immediate);
+        i = (~i + 1) & 0xffffff;
+        code |= i;
       } else if (isdigit(ch)) {
-	i = (ch - '0');
-	const unsigned max_immediate = 0xffffff;
-	ch = read_char();
-	if (ch == 'x') {
-	  int digit;
-	  ch = read_char();
-	  while ((digit = hexdigit(ch)) >= 0) {
-	    if (max_immediate / 16 < i)
-	      error("maximum immediate exceeded");
-	    i *= 16;
-	    if (max_immediate - digit < i)
-	      error("maximum immediate exceeded");
-	    i += digit;
-	    ch = read_char();
-	  }
-	} else {
-	  while (isdigit(ch)) {
-	    if (max_immediate / 10 < i)
-	      error("maximum immediate exceeded");
-	    i *= 10;
-	    int digit = ch - '0';
-	    if (max_immediate - digit < i)
-	      error("maximum immediate exceeded");
-	    i += digit;
-	    ch = read_char();
-	  }
-	}
+        i = (ch - '0');
+        const unsigned max_immediate = 0xffffff;
+        ch = read_char();
+        if (ch == 'x') {
+          int digit;
+          ch = read_char();
+          while ((digit = hexdigit(ch)) >= 0) {
+            if (max_immediate / 16 < i)
+              error("maximum immediate exceeded");
+            i *= 16;
+            if (max_immediate - digit < i)
+              error("maximum immediate exceeded");
+            i += digit;
+            ch = read_char();
+          }
+        } else {
+          while (isdigit(ch)) {
+            if (max_immediate / 10 < i)
+              error("maximum immediate exceeded");
+            i *= 10;
+            int digit = ch - '0';
+            if (max_immediate - digit < i)
+              error("maximum immediate exceeded");
+            i += digit;
+            ch = read_char();
+          }
+        }
       } else if (isprint(ch))
-	error("unexpected character '%c' expecting immediate", ch);
+        error("unexpected character '%c' expecting immediate", ch);
       else
-	error("unexpected character code '<0x%02x>' expecting immediate", ch);
+        error("unexpected character code '<0x%02x>' expecting immediate", ch);
       assert(i <= 0xffffff);
       code |= i;
 
       if (is_symbol_character(ch))
-	error("invalid immediate");
+        error("invalid immediate");
     }
 
     // Skip white space after a complete instruction.
@@ -661,8 +661,8 @@ int main(int argc, char **argv) {
 
     if (ch == ';') {
       while ((ch = read_char()) != '\n')
-	if (ch == EOF)
-	  error("unexpected end-of-file in comment");
+        if (ch == EOF)
+          error("unexpected end-of-file in comment");
     }
 
     if (ch != '\n')
