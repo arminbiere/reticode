@@ -33,9 +33,9 @@ static inline bool disassemble_reti_code(const unsigned code, char * str) {
 	instruction = "LOADI", instruction_length = 5;
       }
     } else if (top_two_bits == 2) {
-      const unsigned next_top_two_bits = code >> 28;
+      const unsigned next_top_two_bits = (code >> 28) & 3;
       if (next_top_two_bits != 3) {
-	decode_destination = true;
+	decode_destination = false;
 	if (next_top_two_bits == 0)
 	  instruction = "STORE", instruction_length = 5;
 	else if (next_top_two_bits == 1)
@@ -56,7 +56,7 @@ static inline bool disassemble_reti_code(const unsigned code, char * str) {
       else if (next_top_four_bits == 3)
 	instruction = "ADDI", instruction_length = 4, positive = false;
       else if (next_top_four_bits == 4)
-	instruction = "OPLUSI", instruction_length = 5, hexadecimal = true;
+	instruction = "OPLUSI", instruction_length = 6, hexadecimal = true;
       else if (next_top_four_bits == 5)
 	instruction = "ORI", instruction_length = 3, hexadecimal = true;
       else if (next_top_four_bits == 6)
@@ -73,7 +73,7 @@ static inline bool disassemble_reti_code(const unsigned code, char * str) {
 	instruction = "AND", instruction_length = 3, hexadecimal = true;
       else {
 	decode_destination = decode_immediate = false;
-	instruction = "ILLEGAL", instruction_length = 6;
+	instruction = "ILLEGAL", instruction_length = 7;
 	res = false;
       }
     } else {
@@ -81,19 +81,20 @@ static inline bool disassemble_reti_code(const unsigned code, char * str) {
       assert(top_two_bits == 3);
       positive = false;
       decode_destination = false;
-      if (next_top_three_bits == 0)
+      if (next_top_three_bits == 0) {
+	decode_immediate = false;
 	instruction = "NOP", instruction_length = 3;
-      else if (next_top_three_bits == 1)
+      } else if (next_top_three_bits == 1)
 	instruction = "JUMP>", instruction_length = 5;
       else if (next_top_three_bits == 2)
-	instruction = "JUMP=", instruction_length = 6;
+	instruction = "JUMP=", instruction_length = 5;
       else if (next_top_three_bits == 3)
 	instruction = "JUMP>=", instruction_length = 6;
       else if (next_top_three_bits == 4)
 	instruction = "JUMP<", instruction_length = 5;
       else if (next_top_three_bits == 5)
 	instruction = "JUMP!=", instruction_length = 6;
-      else if (next_top_three_bits == 0)
+      else if (next_top_three_bits == 6)
 	instruction = "JUMP<=", instruction_length = 6;
       else {
 	assert(next_top_three_bits == 7);
