@@ -1,3 +1,3 @@
 #include "disreti.h"
 
-int main () { }
+int main() {}

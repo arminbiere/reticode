@@ -17,13 +17,17 @@ static const char *assembler_path;
 static bool close_assembler_file;
 static FILE *assembler_file;
 
+static char *line;
+static size_t size_line;
+static size_t capacity_line;
+
 // And write binary encoded ReTI code file.
 
 static const char *code_path;
 static bool close_code_file;
 static FILE *code_file;
 
-// Two generic error functions.
+// A generic error functions.
 
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
@@ -37,6 +41,17 @@ static void die(const char *fmt, ...) {
   exit(1);
 }
 
+// Parse error function.
+
+static bool non_empty_line(void) {
+  for (size_t i = 0; i != size_line; i++) {
+    const int ch = line[i];
+    if (ch != ' ' && ch != '\t')
+      return true;
+  }
+  return false;
+}
+
 static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
@@ -46,6 +61,27 @@ static void error(const char *fmt, ...) {
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
   va_end(ap);
+  if (non_empty_line()) {
+    fputs(" in \"", stderr);
+    size_t i = 0;
+    int ch;
+    while (i != size_line && ((ch = line[i]) == ' ' || ch == '\t'))
+      i++;
+    while (i != size_line) {
+      int ch = line[i++];
+      if (ch == '\t')
+        fputs("<tab>", stderr);
+      else if (ch == '\n')
+        fputs("<new-line>", stderr);
+      else if (ch == '\n')
+        fputs("<end-of-file>", stderr);
+      else if (isprint(ch))
+        fputc(ch, stderr);
+      else
+        fprintf(stderr, "<0x%02x>", ch);
+    }
+    fputc('"', stderr);
+  }
   fputc('\n', stderr);
   exit(1);
 }
@@ -67,6 +103,18 @@ static bool file_exists(const char *path) {
   return !stat(path, &buf);
 }
 
+// Save read lines to 'line' for better parse error diagnosis.
+
+static void push_char(int ch) {
+  if (size_line == capacity_line) {
+    capacity_line = capacity_line ? 2 * capacity_line : 1;
+    line = realloc(line, capacity_line);
+    if (!line)
+      die("out-of-memory enlarging line buffer");
+  }
+  line[size_line++] = ch;
+}
+
 // Read from the assembler file, handle DOS/Windows carriage return and
 // update line number counter 'lineno'.
 
@@ -77,8 +125,12 @@ static int read_char(void) {
     if (res != '\n')
       error("missing new-line after carriage-return");
   }
+  if (last_read_char == '\n')
+    size_line = 0;
   if (res == '\n')
     lineno++;
+  else
+    push_char(res);
   last_read_char = res;
   return res;
 }
@@ -267,6 +319,7 @@ int main(int argc, char **argv) {
         code = JUMPEQ; // i
         ch = read_char();
       } else if (ch == '<') {
+        ch = read_char();
         if (ch == ' ')
           code = JUMPLT; // i
         else if (ch == '=') {
@@ -297,20 +350,17 @@ int main(int argc, char **argv) {
         ch = read_char();
         if (ch == ' ')
           code = LOADI; // D i
-        else {
+        else if (ch == 'N') {
           ch = read_char();
-          if (ch == 'N') {
-            ch = read_char();
-            if (ch == '1')
-              code = LOADIN1; // D i
-            else if (ch == '2')
-              code = LOADIN2; // D i
-            else
-              invalid_instruction();
-            ch = read_char();
-          } else
+          if (ch == '1')
+            code = LOADIN1; // D i
+          else if (ch == '2')
+            code = LOADIN2; // D i
+          else
             invalid_instruction();
-        }
+          ch = read_char();
+        } else
+          invalid_instruction();
       } else
         invalid_instruction();
       break;
@@ -558,6 +608,8 @@ int main(int argc, char **argv) {
   }
 
 DONE:
+
+  free(line);
 
   if (close_assembler_file)
     fclose(assembler_file);
