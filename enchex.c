@@ -72,9 +72,9 @@ static int char2hex(int ch) {
   if ('0' <= ch && ch <= '9')
     return ch - '0';
   if ('a' <= ch && ch <= 'f')
-    return ch - 'a';
+    return 10 + (ch - 'a');
   if ('A' <= ch && ch <= 'F')
-    return ch - 'A';
+    return 10 + (ch - 'A');
   return EOF;
 }
 
