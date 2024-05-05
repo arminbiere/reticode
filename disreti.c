@@ -39,9 +39,9 @@ static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
   fprintf(stderr,
-	  "disreti: parse error: "
-	  "at byte %zu after %zu words in '%s': ",
-	  bytes, words, input_path);
+          "disreti: parse error: "
+          "at byte %zu after %zu words in '%s': ",
+          bytes, words, input_path);
   va_list ap;
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
       output_path = arg;
     else
       die("too many files '%s', '%s' and '%s' (try '-h')", input_path,
-	  output_path, arg);
+          output_path, arg);
   }
 
   if (!input_path || !strcmp(input_path, "-"))
