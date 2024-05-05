@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
       instructions_string = arg;
     else
       die("too many argument '%s', '%s' and '%s'", seed_string,
-	  instructions_string, arg);
+          instructions_string, arg);
   }
 
   // Normalize single argument (see 'usage' above).
@@ -151,13 +151,13 @@ int main(int argc, char **argv) {
     for (const char *p = seed_string; *p; p++) {
       int ch = *p;
       if (!isdigit(ch))
-	die("invalid seed '%s'", seed_string);
+        die("invalid seed '%s'", seed_string);
       if (max_seed / 10 < seed)
-	die("seed '%s' exceeds maximum", seed_string);
+        die("seed '%s' exceeds maximum", seed_string);
       seed *= 10;
       int digit = ch - '0';
       if (max_seed - digit < seed)
-	die("seed '%s' exceeds maximum", seed_string);
+        die("seed '%s' exceeds maximum", seed_string);
       seed += digit;
     }
   } else {
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
     if (ch == '-') {
       ch = *p++;
       if (!ch)
-	die("invalid instructions '-'");
+        die("invalid instructions '-'");
     }
     if (!isdigit(ch))
       die("invalid instructions '%s'", instructions_string);
@@ -186,20 +186,20 @@ int main(int argc, char **argv) {
     const uint64_t max_instructions = (uint64_t)1 << 32;
     while ((ch = *p++)) {
       if (!isdigit(ch))
-	die("invalid instructions '%s'", instructions_string);
+        die("invalid instructions '%s'", instructions_string);
       if (max_instructions / 10 < instructions)
-	die("instructions '%s' exceed maximum", instructions_string);
+        die("instructions '%s' exceed maximum", instructions_string);
       instructions *= 10;
       int digit = ch - '0';
       if (max_instructions - digit < instructions)
-	die("instructions '%s' exceed maximum", instructions_string);
+        die("instructions '%s' exceed maximum", instructions_string);
       instructions += digit;
     }
     if (*instructions_string == '-') {
       if (instructions >= UINT_MAX)
-	instructions = random32();
+        instructions = random32();
       else
-	instructions = pick32(0, instructions);
+        instructions = pick32(0, instructions);
     }
   } else {
     unsigned log_instructions = pick32(0, 5);
@@ -223,20 +223,20 @@ int main(int argc, char **argv) {
       uint64_t min_pc, max_pc;
 
       if (pc && random1()) { // Backward jump.
-	min_pc = (pc >= 0x800000) ? pc - 0x800000 : 0;
-	max_pc = pc - 1;
+        min_pc = (pc >= 0x800000) ? pc - 0x800000 : 0;
+        max_pc = pc - 1;
       } else { // Forward jump.
-	min_pc = pc + 1;
-	max_pc = pc + 0x7fffff;
-	if (max_pc > instructions)
-	  max_pc = instructions; // Can point right after last instruction.
+        min_pc = pc + 1;
+        max_pc = pc + 0x7fffff;
+        if (max_pc > instructions)
+          max_pc = instructions; // Can point right after last instruction.
       }
 
       const unsigned min_jump = min_pc - pc;
       const unsigned max_jump = max_pc - pc;
       const unsigned immediate = pick32(min_jump, max_jump);
 
-      code &= ~0xffffff;	    // Clear immediate bits.
+      code &= ~0xffffff;            // Clear immediate bits.
       code |= immediate & 0xffffff; // Add new randome immediate.
     }
 
