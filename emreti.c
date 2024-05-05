@@ -186,9 +186,9 @@ int main(int argc, char **argv) {
       die("invalid option '%s' (try '-h')", arg);
     else if (is_number_string(arg)) {
       if (limit_string)
-        die("two instruction numbers '%s' and '%s'", limit_string, arg);
+        die("two steps limits '%s' and '%s'", limit_string, arg);
       if (file_exists(arg))
-        die("limit '%s' matches file '%s'", arg, arg);
+        die("steps limit '%s' matches file '%s'", arg, arg);
       limit_string = arg;
     } else if (!code_path)
       code_path = arg;
@@ -208,11 +208,11 @@ int main(int argc, char **argv) {
     while ((ch = *p++)) {
       assert(isdigit(ch));
       if (max_limit / 10 < limit)
-        die("maximum limit exceeded in '%s'", limit_string);
+        die("maximum steps limit exceeded in '%s'", limit_string);
       limit *= 10;
       int digit = ch - '0';
       if (max_limit - digit < limit)
-        die("maximum limit exceeded in '%s'", limit_string);
+        die("maximum steps limit exceeded in '%s'", limit_string);
       limit += digit;
     }
   }
@@ -368,7 +368,7 @@ int main(int argc, char **argv) {
   for (;;) {
 
     if (steps++ == limit) {
-      warn("limit on number of steps '%zu' reached", limit);
+      warn("steps limit '%zu' reached", limit);
       break;
     }
 
@@ -483,7 +483,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-    // Now we decode the actual limit and execute it.
+    // Now we decode the actual instruction and execute it.
 
     switch (I31to30) {
 
