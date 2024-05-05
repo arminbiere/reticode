@@ -12,6 +12,8 @@ static const char *usage =
 "with the following options\n"
 "\n"
 "  -h | --help   print this command line option summary\n"
+"  -g | --debug  stop on unitialized data memory access\n"
+"  -i | --ignore no warning on unitialized data memory access\n"
 #ifndef NSTEPPING
 "  -s | --step   step through and print each instruction\n"
 #endif
@@ -139,6 +141,8 @@ int main(int argc, char **argv) {
   size_t steps = 0;
 #endif
 
+  int debug = 0; //-1=ignore, 0=warning, 1=abort on unitialized data access.
+
   const char *code_path = 0;
   const char *data_path = 0;
 
@@ -155,7 +159,11 @@ int main(int argc, char **argv) {
           "(configured and compiled without stepping support)",
           arg);
 #endif
-    } else if (arg[0] == '-' && arg[1])
+    } else if (!strcmp(arg, "-g") || !strcmp(arg, "--debug"))
+      debug = 1;
+    else if (!strcmp(arg, "-i") || !strcmp(arg, "--ignore"))
+      debug = -1;
+    else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (!code_path)
       code_path = arg;
@@ -684,8 +692,14 @@ int main(int argc, char **argv) {
 #endif
 
     if (M_read) {
-      if (address >= shadow.data || !shadow.valid[address])
-        warn("read uninitialized 'data[0x%x]'", address);
+      if (address >= shadow.data || !shadow.valid[address]) {
+        if (debug > 0)
+          warn("stopping on reading uninitialized 'data[0x%x]'", address);
+        if (!debug)
+          warn("continuing after uninitialized 'data[0x%x]' "
+               "(use '-i' so squelch such messages, or '-g' to stop)",
+               address);
+      }
     }
 
     assert(!D_write || !M_write);
