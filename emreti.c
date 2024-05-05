@@ -7,9 +7,9 @@ static const char *usage =
 #ifndef NSTEPPING
 " | -s | --step"
 #endif
-" ] [ <code> [ <data> ] ] \n"
+" ] [ <steps> ] [ <code> [ <data> ] ] \n"
 "\n"
-"with the following options\n"
+"with the following options:\n"
 "\n"
 "  -h | --help   print this command line option summary\n"
 "  -g | --debug  stop on unitialized data memory access\n"
@@ -18,14 +18,21 @@ static const char *usage =
 "  -s | --step   step through and print each instruction\n"
 #endif
 "\n"
-"with '<code>' a program in ReTI machine code and '<data>' some which is\n"
-"loaded as data memory initially. If '<code>' is missing the program is\n"
-"read from '<stdin>' and if '<data>' is missing the data memory is kept\n"
-"completely uninitialized.  Alternatively it is also possibly to use as\n"
-"file name '-' to force reading from '<stdin>'.\n"
+"The '<code>' is a program in ReTI machine code and '<data>' some binary\n"
+"data which is loaded as data memory initially. If '<code>' is missing\n"
+"the program is read from '<stdin>' and if '<data>' is missing the data\n"
+"memory is kept completely uninitialized.  All unitialized words of the\n"
+"data memory are set to zero. Alternatively it is also possibly to use as\n"
+"file name '-' to force reading from '<stdin>' (but only for one file).\n"
 "\n"
 "If program execution succeeds the final data memory is printed for all\n"
-"addressed that have been initialized.\n"
+"data words that have been initialized either through reading '<data>'\n"
+"initially or have benn written to during the execution of the program.\n"
+"\n"
+"If the number of limit is given the program stops after that\n"
+"many instructions have been executed.  Otherwise it stops if either\n"
+"an uninitialized instruction is reached above the program code or an\n"
+"instruction which loops on itself (including illegal limit).\n"
 ;
 
 // clang-format on
@@ -120,11 +127,22 @@ static void warn(const char *fmt, ...) {
 
 //----------------------------------------------------------------------------//
 
-// Check if the given path exists as file.
+// Check if the given path exists as a file.
 
 static bool file_exists(const char *path) {
   struct stat buf;
   return !stat(path, &buf);
+}
+
+// Check if the string only contains digits (is a positive number).
+
+static bool is_number_string(const char *str) {
+  if (!isdigit(*str))
+    return false;
+  for (const char *p = str + 1; *p; p++)
+    if (!isdigit(*p))
+      return false;
+  return true;
 }
 
 //----------------------------------------------------------------------------//
@@ -145,6 +163,7 @@ int main(int argc, char **argv) {
 
   const char *code_path = 0;
   const char *data_path = 0;
+  const char *limit_string = 0;
 
   for (int i = 1; i != argc; i++) {
     const char *arg = argv[i];
@@ -165,13 +184,37 @@ int main(int argc, char **argv) {
       debug = -1;
     else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
-    else if (!code_path)
+    else if (is_number_string(arg)) {
+      if (limit_string)
+        die("two instruction numbers '%s' and '%s'", limit_string, arg);
+      if (file_exists(arg))
+        die("limit '%s' matches file '%s'", arg, arg);
+      limit_string = arg;
+    } else if (!code_path)
       code_path = arg;
     else if (!data_path)
       data_path = arg;
     else
       die("more than two files specified '%s', '%s' and '%s' (try '-h')",
           code_path, data_path, arg);
+  }
+
+  const size_t max_limit = ~(size_t)0;
+  size_t limit = max_limit;
+  if (limit_string) {
+    limit = 0;
+    const char *p = limit_string;
+    int ch;
+    while ((ch = *p++)) {
+      assert(isdigit(ch));
+      if (max_limit / 10 < limit)
+        die("maximum limit exceeded in '%s'", limit_string);
+      limit *= 10;
+      int digit = ch - '0';
+      if (max_limit - digit < limit)
+        die("maximum limit exceeded in '%s'", limit_string);
+      limit += digit;
+    }
   }
 
   if (code_path && data_path)
@@ -322,7 +365,12 @@ int main(int argc, char **argv) {
 
   // Run the emulation until we get to a self-loop or reach undefined code.
 
-  for (;;) {
+  for (size_t executed = 0;; executed++) {
+
+    if (executed == limit) {
+      warn("limit on number of steps '%zu' reached", limit);
+      break;
+    }
 
     const unsigned PC = reti.PC;
     const unsigned IN1 = reti.IN1;
@@ -434,7 +482,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-    // Now we decode the actual instructions and execute it.
+    // Now we decode the actual limit and execute it.
 
     switch (I31to30) {
 
