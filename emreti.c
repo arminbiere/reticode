@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
 #define INSTRUCTION(...)                                                       \
   do {                                                                         \
     if (step)                                                                  \
-      snprintf(instruction, 128, __VA_ARGS__);                                 \
+      snprintf(instruction, 32, __VA_ARGS__);                                 \
   } while (0)
 
 #define ACTION(...)                                                            \

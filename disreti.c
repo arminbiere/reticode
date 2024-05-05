@@ -127,8 +127,8 @@ int main(int argc, char **argv) {
 
   if (close_input_file)
     fclose(input_file);
-  if (close_input_file)
-    fclose(input_file);
+  if (close_output_file)
+    fclose(output_file);
 
   return 0;
 }
