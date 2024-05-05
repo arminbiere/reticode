@@ -156,8 +156,8 @@ int main(int argc, char **argv) {
 
 #ifndef NSTEPPING
   bool step = false;
-  size_t steps = 0;
 #endif
+  size_t steps = 0;
 
   int debug = 0; //-1=ignore, 0=warning, 1=abort on unitialized data access.
 
@@ -365,9 +365,9 @@ int main(int argc, char **argv) {
 
   // Run the emulation until we get to a self-loop or reach undefined code.
 
-  for (size_t executed = 0;; executed++) {
+  for (;;) {
 
-    if (executed == limit) {
+    if (steps++ == limit) {
       warn("limit on number of steps '%zu' reached", limit);
       break;
     }
@@ -380,9 +380,10 @@ int main(int argc, char **argv) {
     if (PC >= shadow.code) {
 #ifndef NSTEPPING
       if (step) {
-        if (!steps)
+        if (steps == 1)
           fputs("PC       CODE     IN1      IN2      ACC\n", stdout);
-        printf("%08x ........ %08x %08x %08x <undefined>\n", PC, IN1, IN2, ACC);
+        printf("%-10zu %08x ........ %08x %08x %08x <undefined>\n", steps, PC,
+               IN1, IN2, ACC);
       }
 #endif
       if (PC != shadow.code)
@@ -719,11 +720,12 @@ int main(int argc, char **argv) {
 
 #ifndef NSTEPPING
     if (step) {
-      if (!steps++) {
-        fputs("PC       CODE     IN1      IN2      ACC      ", stdout);
+      if (steps == 1) {
+        fputs("STEPS      PC       CODE     IN1      IN2      ACC      ",
+              stdout);
         fputs("INSTRUCTION           ACTION\n", stdout);
       }
-      printf("%08x %08x %08x %08x %08x ", PC, I, IN1, IN2, ACC);
+      printf("%-10zu %08x %08x %08x %08x %08x ", steps, PC, I, IN1, IN2, ACC);
       printf(instruction_format, instruction);
 #ifndef NDEBUG
       char instruction2[32];
@@ -784,10 +786,10 @@ int main(int argc, char **argv) {
     if (PC_next == PC) { // Check if stuck in infinite loop.
 #ifndef NSTEPPING
       if (step) {
-        if (!steps)
-          fputs("PC       CODE     IN1      IN2      ACC\n", stdout);
-        printf("%08x %08x %08x %08x %08x <infinite-loop>\n", PC, I, IN1, IN2,
-               ACC);
+        if (steps == 1)
+          fputs("STEPS     PC       CODE     IN1      IN2      ACC\n", stdout);
+        printf("%-10zu %08x %08x %08x %08x %08x <infinite-loop>\n", steps, PC, I,
+               IN1, IN2, ACC);
       }
 #endif
       break;
