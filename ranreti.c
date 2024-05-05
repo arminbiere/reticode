@@ -76,20 +76,28 @@ static uint64_t random64(void) {
 
 static unsigned random32(void) { return random64() >> 32; }
 
-// Used floating point as modulo is imprecise.
+// Pick a random number interval from 'l' to 'r' including both limits.
+// Use floating point as modulo is imprecise.
 
-static uint64_t pick32(unsigned l, unsigned r) {
+static unsigned pick32(unsigned l, unsigned r) {
   assert(l <= r);
   if (l == r)
     return l;
-  const unsigned delta = r - l;
+  const unsigned delta = r - l + 1;
   const unsigned tmp = random32();
-  const double fraction = tmp / 4294967296.0;
-  assert(0 <= fraction), assert(fraction < 1);
-  const unsigned scaled = delta * fraction;
-  assert(scaled < delta);
-  const unsigned res = l + scaled;
-  assert(l <= res), assert(res < r);
+  unsigned res;
+  if (!delta) {
+    assert(!l);
+    assert(r == UINT_MAX);
+    res = tmp;
+  } else {
+    const double fraction = tmp / 4294967296.0;
+    assert(0 <= fraction), assert(fraction < 1);
+    const unsigned scaled = delta * fraction;
+    assert(scaled < delta);
+    res = l + scaled;
+  }
+  assert(l <= res), assert(res <= r);
   return res;
 }
 
@@ -188,19 +196,17 @@ int main(int argc, char **argv) {
       instructions += digit;
     }
     if (*instructions_string == '-') {
-      if (instructions == max_instructions)
+      if (instructions >= UINT_MAX)
 	instructions = random32();
-      else {
-	assert(instructions <= UINT_MAX);
+      else
 	instructions = pick32(0, instructions);
-      }
     }
   } else {
     unsigned log_instructions = pick32(0, 5);
     instructions = pick32(1, (1u << log_instructions));
   }
 
-  assert(instructions);
+  generator = seed;
 
   printf("; ranreti %" PRIu64 " %" PRIu64 "\n", seed, instructions);
 
@@ -212,24 +218,26 @@ int main(int argc, char **argv) {
     // For jumps we want to make sure that they stay within the
     // generated instructions.
 
-    if (code > 0xc0000000) { // 1100 0000 0000 0000 thus 'JUMP..'
+    if (code > 0xc0000000) { // 'JUMP..' > 1100 0000 0000 0000 = 'NOP'
 
-      unsigned min_jump, max_jump;
+      uint64_t min_pc, max_pc;
 
       if (pc && random1()) { // Backward jump.
-	min_jump = (pc >= 0x800000) ? pc - 0x800000 : 0;
-	max_jump = pc - 1;
+	min_pc = (pc >= 0x800000) ? pc - 0x800000 : 0;
+	max_pc = pc - 1;
       } else { // Forward jump.
-	min_jump = pc + 1;
-	max_jump = pc + 0x7fffff;
-	if (max_jump > instructions)
-	  max_jump = instructions; // May point one after last instruction.
+	min_pc = pc + 1;
+	max_pc = pc + 0x7fffff;
+	if (max_pc > instructions)
+	  max_pc = instructions; // Can point right after last instruction.
       }
 
-      const unsigned jump = pick32(min_jump, max_jump);
-      const unsigned immediate = jump - pc; // Two-complent!
-      code &= ~0xffffff;		    // Clear immediate bits.
-      code |= immediate & 0xffffff;	    // Add new randome immediate.
+      const unsigned min_jump = min_pc - pc;
+      const unsigned max_jump = max_pc - pc;
+      const unsigned immediate = pick32(min_jump, max_jump);
+
+      code &= ~0xffffff;	    // Clear immediate bits.
+      code |= immediate & 0xffffff; // Add new randome immediate.
     }
 
     if (disassemble_reti_code(code, str)) {
