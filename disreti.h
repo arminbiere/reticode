@@ -77,8 +77,8 @@ static inline bool disassemble_reti_code(const unsigned code, char *str) {
         res = false;
       }
     } else {
-      const unsigned next_top_three_bits = (code >> 27) & 7;
       assert(top_two_bits == 3);
+      const unsigned next_top_three_bits = (code >> 27) & 7;
       positive = false;
       decode_destination = false;
       if (next_top_three_bits == 0) {
