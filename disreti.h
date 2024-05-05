@@ -128,7 +128,7 @@ static inline bool disassemble_reti_code(const unsigned code, char *str) {
   }
   if (decode_destination) {
     str[length++] = ' ';
-    const unsigned destination_register_code = (code >> 26) & 3;
+    const unsigned destination_register_code = (code >> 24) & 3;
     size_t destination_length;
     const char *destination;
     if (destination_register_code == 0)

@@ -381,8 +381,8 @@ int main(int argc, char **argv) {
 #ifndef NSTEPPING
       if (step) {
         if (steps == 1)
-          fputs("PC       CODE     IN1      IN2      ACC\n", stdout);
-        printf("%-10zu %08x ........ %08x %08x %08x <undefined>\n", steps, PC,
+          fputs("STEPS    PC       CODE     IN1      IN2      ACC\n", stdout);
+        printf("%-8zu %08x ........ %08x %08x %08x <undefined>\n", steps, PC,
                IN1, IN2, ACC);
       }
 #endif
@@ -721,23 +721,30 @@ int main(int argc, char **argv) {
 #ifndef NSTEPPING
     if (step) {
       if (steps == 1) {
-        fputs("STEPS      PC       CODE     IN1      IN2      ACC      ",
-              stdout);
-        fputs("INSTRUCTION           ACTION\n", stdout);
+        fputs("STEPS    PC       CODE     IN1      IN2      ACC      ", stdout);
+        printf(instruction_format, "INSTRUCTION");
+        fputs(" ACTION\n", stdout);
       }
-      printf("%-10zu %08x %08x %08x %08x %08x ", steps, PC, I, IN1, IN2, ACC);
+      printf("%-8zu %08x %08x %08x %08x %08x ", steps, PC, I, IN1, IN2, ACC);
       printf(instruction_format, instruction);
 #ifndef NDEBUG
       char instruction2[32];
       disassemble_reti_code(I, instruction2);
-      fputc(' ', stdout);
-      printf(instruction_format, instruction2);
 #endif
-      fputs(" ", stdout);
+      fputc(' ', stdout);
       fputs(action, stdout);
       fputc('\n', stdout);
       fflush(stdout);
-      assert(!strcmp(instruction, instruction2));
+#ifndef NDEBUG
+      if (strcmp(instruction, instruction2)) {
+        fprintf(stderr,
+                "emreti: fatal: "
+                "disassambled instruction '%s' does not match\n",
+                instruction2);
+        fflush(stderr);
+        abort();
+      }
+#endif
     }
 #endif
 
@@ -787,8 +794,8 @@ int main(int argc, char **argv) {
 #ifndef NSTEPPING
       if (step) {
         if (steps == 1)
-          fputs("STEPS     PC       CODE     IN1      IN2      ACC\n", stdout);
-        printf("%-10zu %08x %08x %08x %08x %08x <infinite-loop>\n", steps, PC, I,
+          fputs("STEPS   PC       CODE     IN1      IN2      ACC\n", stdout);
+        printf("%-8zu %08x %08x %08x %08x %08x <infinite-loop>\n", steps, PC, I,
                IN1, IN2, ACC);
       }
 #endif
