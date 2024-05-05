@@ -1,5 +1,5 @@
 COMPILE=@COMPILE@
-all: asreti decbin disreti enchex emreti
+all: asreti decbin disreti enchex emreti ranreti
 asreti: asreti.c makefile
 	$(COMPILE) -o $@ $<
 decbin: decbin.c makefile
@@ -10,10 +10,12 @@ enchex: enchex.c makefile
 	$(COMPILE) -o $@ $<
 emreti: emreti.c disreti.h makefile
 	$(COMPILE) -o $@ $<
+ranreti: ranreti.c disreti.h makefile
+	$(COMPILE) -o $@ $<
 format:
 	clang-format -i *.[ch]
 clean:
-	rm -f asreti decbin disreti enchex emreti makefile
+	rm -f asreti decbin disreti enchex emreti ranreti makefile
 	+make -C tests clean
 test: all
 	make -C tests
