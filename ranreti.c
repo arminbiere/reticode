@@ -242,6 +242,9 @@ int main(int argc, char **argv) {
       code |= immediate & 0xffffff; // Add new randome immediate.
     }
 
+    if (!((code >> 24) & 3))
+      code |= pick32 (1,3) << 24;
+
     if (disassemble_reti_code(code, str))
       printf("%-21s ; %08x %08x\n", str, (unsigned)pc++, code);
   }
