@@ -23,6 +23,7 @@ static bool close_output_file;
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {
+  fflush (stdout);
   fputs("enchex: error: ", stderr);
   va_list ap;
   va_start(ap, fmt);
@@ -35,6 +36,7 @@ static void die(const char *fmt, ...) {
 static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
+  fflush (stdout);
   fprintf(stderr, "enchex: parse error: at line %zu in '%s': ",
           lineno - (last_input_char == '\n'), input_path);
   va_list ap;

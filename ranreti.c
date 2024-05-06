@@ -211,7 +211,9 @@ int main(int argc, char **argv) {
   printf("; ranreti %" PRIu64 " %" PRIu64 "\n", seed, instructions);
 
   char str[disassembled_reti_code_length];
-  for (uint64_t pc = 0; pc != instructions; pc++) {
+  uint64_t pc = 0;
+
+  for (uint64_t sampled = 0; sampled != instructions; sampled++) {
 
     unsigned code = random32(); // Generate arbitrary random code.
 
@@ -240,9 +242,8 @@ int main(int argc, char **argv) {
       code |= immediate & 0xffffff; // Add new randome immediate.
     }
 
-    if (disassemble_reti_code(code, str)) {
-      printf("%-21s ; %08x %08x\n", str, (unsigned)pc, code);
-    }
+    if (disassemble_reti_code(code, str))
+      printf("%-21s ; %08x %08x\n", str, (unsigned)pc++, code);
   }
   return 0;
 }
