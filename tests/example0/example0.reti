@@ -1,0 +1,12 @@
+; This is a concrete version of the large abstract example from the lecture.
+LOADI ACC 0
+STORE 2
+LOAD ACC 1
+SUBI ACC 1
+STORE 1
+JUMP< 5
+LOAD ACC 2
+ADD ACC 0
+STORE 2
+JUMP -7
+JUMP 0
