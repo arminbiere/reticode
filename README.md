@@ -46,9 +46,9 @@ STEPS    PC       CODE     IN1      IN2      ACC      INSTRUCTION         ACTION
 3        00000002 13bc4285 00000000 00000000 00000000 OPLUSI ACC 0xbc4285 ACC = ACC ^ 0xbc4285 = 0x0 ^ 0xbc4285 = 0xbc4285
 4        00000003 a035bb73 00000000 00000000 00bc4285 STOREIN2 3521395    M(0x35bb73) = M(<IN2> + <0x35bb73>) = M(0x0 + 0x35bb73) = ACC = bc4285
 5        00000004 ........ 00000000 00000000 00bc4285 <undefined>
-ADDRESS  DATA     BYTES       ASCII UNSIGNED SIGNED
-002765bb 00000000 00 00 00 00 ....         0      0
-0035bb73 00bc4285 85 42 bc 00 .B..  12337797 12337797
-00e5e1ff 00000000 00 00 00 00 ....         0      0
+ADDRESS  DATA     BYTES       ASCII  UNSIGNED       SIGNED
+002765bb 00000000 00 00 00 00 ....          0            0
+0035bb73 00bc4285 85 42 bc 00 .B..   12337797     12337797
+00e5e1ff 00000000 00 00 00 00 ....          0            0
 ```
 For more information on using these tools use their command line option `-h`.
