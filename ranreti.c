@@ -161,8 +161,9 @@ int main(int argc, char **argv) {
       seed += digit;
     }
   } else {
-    seed = 1111111121 * (uint64_t)times(0); // Spread time over 64-bits.
-    seed += 20000003 * (uint64_t)getpid();  // Hash in process identifier.
+    struct tms tp;
+    seed = 1111111121 * (uint64_t)times(&tp); // Spread time over 64-bits.
+    seed += 20000003 * (uint64_t)getpid();    // Hash in process identifier.
   }
 
   // Parse instructions argument.
