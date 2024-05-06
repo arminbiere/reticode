@@ -161,8 +161,9 @@ int main(int argc, char **argv) {
       seed += digit;
     }
   } else {
-    seed = 1111111121 * (uint64_t)times(0); // Spread time over 64-bits.
-    seed += 20000003 * (uint64_t)getpid();  // Hash in process identifier.
+    struct tms tp;
+    seed = 1111111121 * (uint64_t)times(&tp); // Spread time over 64-bits.
+    seed += 20000003 * (uint64_t)getpid();    // Hash in process identifier.
   }
 
   // Parse instructions argument.
@@ -239,6 +240,9 @@ int main(int argc, char **argv) {
       code &= ~0xffffff;            // Clear immediate bits.
       code |= immediate & 0xffffff; // Add new randome immediate.
     }
+
+    if (!((code >> 24) & 3))
+      code |= pick32 (1,3) << 24;
 
     if (disassemble_reti_code(code, str)) {
       printf("%-21s ; %08x %08x\n", str, (unsigned)pc, code);
