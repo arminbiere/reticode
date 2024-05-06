@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
 #define INSTRUCTION(...)                                                       \
   do {                                                                         \
     if (step)                                                                  \
-      snprintf(instruction, 32, __VA_ARGS__);                                 \
+      snprintf(instruction, 32, __VA_ARGS__);                                  \
   } while (0)
 
 #define ACTION(...)                                                            \
@@ -809,7 +809,9 @@ int main(int argc, char **argv) {
 
 #ifndef NSTEPPING
   if (step)
-    fputs("ADDRESS  DATA     BYTES       ASCII UNSIGNED SIGNED\n", stdout);
+    fputs("ADDRESS  DATA     BYTES       "
+          "ASCII  UNSIGNED       SIGNED\n",
+          stdout);
 #endif
 
   for (size_t i = 0; i != shadow.data; i++)
@@ -825,7 +827,7 @@ int main(int argc, char **argv) {
           int ch = tmp & 0xff;
           printf("%c", isprint(ch) ? ch : '.');
         }
-        printf("%10u %6d", (unsigned)word, (int)word);
+        printf("%11u %12d", (unsigned)word, (int)word);
       }
 #endif
       fputc('\n', stdout);
