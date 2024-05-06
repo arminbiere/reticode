@@ -757,7 +757,7 @@ int main(int argc, char **argv) {
 	  break;
 	}
         if (!debug)
-          warn("continuing after uninitialized 'data[0x%x]' "
+          warn("continuing after reading uninitialized 'data[0x%x]' "
                "(use '-i' so squelch such messages, or '-g' to stop)",
                address);
       }
