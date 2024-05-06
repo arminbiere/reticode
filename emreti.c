@@ -436,7 +436,7 @@ int main(int argc, char **argv) {
 
     // Determine pointer address of destination register (in any case).
 
-    unsigned *D_pointer = 0;
+    unsigned *D_pointer = 0, D = 0;
     const char *D_symbol = 0;
 
     switch (I25to24) {
@@ -559,7 +559,7 @@ int main(int argc, char **argv) {
       break; // end of Store Instructions
 
     case BV2(0, 0): // Compute Instructions
-      unsigned D = *D_pointer;
+      D = *D_pointer;
       switch (I31to26) {
       case BV6(0, 0, 0, 0, 1, 0): // SUBI D i
         result = D - signed_immediate;
@@ -775,7 +775,7 @@ int main(int argc, char **argv) {
 
     if (M_write) {
 
-      if (address >= CAPACITY)
+      if ((size_t) address >= (size_t) CAPACITY)
         die("can not write 'data[0x%x]' above address 0x%x", address,
             (unsigned)(CAPACITY - 1));
 

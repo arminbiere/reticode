@@ -572,7 +572,7 @@ int main(int argc, char **argv) {
 
     if (parse_immediate) {
       ch = read_char();
-      unsigned i;
+      unsigned i = 1;
       if (ch == ' ')
         error("unexpected space instead of immediate");
       else if (is_end_of_line_character(ch))
