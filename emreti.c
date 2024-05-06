@@ -539,7 +539,7 @@ int main(int argc, char **argv) {
         address = IN1 + unsigned_immediate;
         result = ACC;
         INSTRUCTION("STOREIN1 %u", i);
-        ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+        ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = 0x%x",
                address, i, IN1, i, result);
         M_write = true;
         break;
@@ -547,7 +547,7 @@ int main(int argc, char **argv) {
         address = IN2 + unsigned_immediate;
         result = ACC;
         INSTRUCTION("STOREIN2 %u", i);
-        ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = %x",
+        ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = 0x%x",
                address, i, IN2, i, result);
         M_write = true;
         break;
