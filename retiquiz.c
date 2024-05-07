@@ -219,11 +219,26 @@ int main(int argc, char **argv) {
       hex[pos] = '_';
       printf("%-21s ; %08x %s", instruction, (unsigned)pc++, hex);
       for (unsigned i = 0; i != 8 - pos; i++)
-	fputc('', stdout), fflush(stdout);
+	fputc('\b', stdout);
       fflush(stdout);
-
       int ch;
+    READ1:
       ssize_t chars = read(STDIN_FILENO, &ch, 1);
+      if (chars == 1 && ch == 'q') {
+	fputc('\n', stdout);
+	fflush (stdout);
+	break;
+      } if ('A' <= ch && ch <= 'F')
+	ch = ch - 'A' + 'a';
+      else if ('a' <= ch && ch <= 'f')
+	;
+      else if ('0' <= ch && ch <= '0')
+	;
+      else {
+	fputc('\a', stdout);
+	fflush(stdout);
+	goto READ1;
+      }
       if (isprint(ch))
 	fputc(ch, stdout);
       fputc('\n', stdout);
