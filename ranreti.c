@@ -1,24 +1,25 @@
 // clang-format off
 
 static const char * usage =
+
 "usage: ranreti [ <option> ... ] [ <seed> ] [ <instructions> ] ]\n"
 "\n"
-"where '<opion>' is one of the following\n"
+"where '<option>' is one of the following\n"
 "\n"
 "  -h | --help   print this command line option summary\n"
 "\n"
-
 "and '<seed>' gives starting seed of the random number generator.\n"
 "The default is to use random seed taking process identifier and time\n"
-"into account.  The number of instructions generated is picked randomly too\n"
-"in the range '1..32' unless '<instructions>' is specified explicitly.\n"
-"If '<instructions>' has a learing '-' it is uniformly picked in that range.\n"
-"A single positive number is a seed and a single negative gives the the\n"
-"limit on the number of generated instruction.  With '-' insead of '<seed>'\n"
+"into account.  The number of instructions generated is picked randomly\n"
+"too in the range '1..32' unless '<instructions>' is specified explicitly.\n"
+"If '<instructions>' has a leading '-' it is uniformly picked in that range.\n"
+"A single positive number is a seed and a single negative gives the limit\n"
+"on the number of generated instruction.  With '-' instead of '<seed>'\n"
 "we specify picking a random seed.\n"
 "\n"
 "Here are some examples:\n"
 "\n"
+
 "  ranreti       # generate random ReTI program of length '1..32'\n"
 "  ranreti 1     # set seed to '1' and use random number of instructions\n"
 "  ranreti 1 10  # set seed to '1' too and generate exactly 10 instructions\n"
@@ -28,8 +29,9 @@ static const char * usage =
 "  ranreti -     # redundant (same as not specifying '-')\n"
 "\n"
 "The machine code of each instruction is generated randomly without illegal\n"
-"instructions and jumps are forced to not yield an infinite loop and to not\n"
-"jump out of the program beyond right after the end of the program.\n"
+"instructions and jumps are forced to not yield an infinite loop and to\n"
+"not jump out of the program beyond right after the end of the program.\n"
+
 ;
 
 // clang-format on
@@ -122,7 +124,7 @@ int main(int argc, char **argv) {
     else if (!instructions_string)
       instructions_string = arg;
     else
-      die("too many argument '%s', '%s' and '%s'", seed_string,
+      die("too many arguments '%s', '%s' and '%s'", seed_string,
           instructions_string, arg);
   }
 
