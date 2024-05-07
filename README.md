@@ -9,6 +9,7 @@ A simple enulator for the ReTI processor.
 - `emreti` emulator runs ReTI code
 - `enchex` encode hexadecimal data into binary
 - `ranreti` generates random assember program
+- `retiquiz` interactive quiz on machine code (TODO)
 
 To configure, build and test run `./configure && make test`.
 

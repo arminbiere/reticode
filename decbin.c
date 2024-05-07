@@ -1,3 +1,16 @@
+// clang-format off
+
+static const char * usage =
+"usage: decbin [ -h | --help ] [ -1 | --no-address ] [ <input> [ <output> ] ]\n"
+"\n"
+"where\n"
+"\n"
+"  -h | --help        prints this command line option summary\n"
+"  -1 | --no-address  single column mode (no address column)\n"
+;
+
+// clang-format on
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -78,12 +91,19 @@ static bool read_word(unsigned *word_ptr) {
 }
 
 int main(int argc, char **argv) {
+
+  // Option parsing.
+
+  bool no_address = false;
+
   for (int i = 1; i != argc; i++) {
     const char *arg = argv[i];
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-      printf("usage: decbin [ <input> [ <output> ] ]\n");
+      fputs(usage, stdout);
       exit(0);
-    } else if (arg[0] == '-' && arg[1])
+    } else if (!strcmp(arg, "-1") || !strcmp(arg, "--no-address"))
+      no_address = true;
+    else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (!input_path)
       input_path = arg;
@@ -125,7 +145,10 @@ int main(int argc, char **argv) {
   while (read_word(&word)) {
     if (words > UINT_MAX)
       error("too many words");
-    printf("%08x %08x\n", (unsigned)words++, word);
+    if (!no_address)
+      printf("%08x ", (unsigned)words);
+    printf("%08x\n", word);
+    words++;
   }
 
   if (close_input_file)

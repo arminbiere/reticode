@@ -1,3 +1,16 @@
+// clang-format off
+
+static const char * usage =
+"usage: enchex [ -h | --help ] [ -1 | --no-address ] [ <input> [ <output> ] ]\n"
+"\n"
+"where\n"
+"\n"
+"  -h | --help        prints this command line option summary\n"
+"  -1 | --no-address  single column mode (no address column)\n"
+;
+
+// clang-format on
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -23,7 +36,7 @@ static bool close_output_file;
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {
-  fflush (stdout);
+  fflush(stdout);
   fputs("enchex: error: ", stderr);
   va_list ap;
   va_start(ap, fmt);
@@ -36,7 +49,7 @@ static void die(const char *fmt, ...) {
 static void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void error(const char *fmt, ...) {
-  fflush (stdout);
+  fflush(stdout);
   fprintf(stderr, "enchex: parse error: at line %zu in '%s': ",
           lineno - (last_input_char == '\n'), input_path);
   va_list ap;
@@ -84,12 +97,16 @@ int main(int argc, char **argv) {
 
   // Option parsing.
 
+  bool no_address = false;
+
   for (int i = 1; i != argc; i++) {
     const char *arg = argv[i];
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-      printf("usage: enchex [ <input> [ <output> ] ]\n");
+      fputs(usage, stdout);
       exit(0);
-    } else if (arg[0] == '-' && arg[1])
+    } else if (!strcmp(arg, "-1") || !strcmp(arg, "--no-address"))
+      no_address = true;
+    else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (!input_path)
       input_path = arg;
@@ -144,25 +161,27 @@ int main(int argc, char **argv) {
           error("unexpected end-of-file in comment");
       continue;
     }
-    unsigned address = 0;
-    for (unsigned nibble = 0; nibble != 8; nibble++) {
-      int digit = char2hex(ch);
-      if (digit < 0)
-        error("invalid address");
-      address <<= 4;
-      address |= digit;
+    if (!no_address) {
+      unsigned address = 0;
+      for (unsigned nibble = 0; nibble != 8; nibble++) {
+        int digit = char2hex(ch);
+        if (digit < 0)
+          error("invalid address");
+        address <<= 4;
+        address |= digit;
+        ch = read_char();
+      }
+      if (ch != ' ')
+        error("expected space after address");
+      if (words > address)
+        error("address 0x%08x below parsed words 0x%08x", address,
+              (unsigned)(words - 1));
+      while (words < address) {
+        for (unsigned byte = 0; byte != 4; byte++)
+          fputc((unsigned char)0, output_file);
+        words++;
+      }
       ch = read_char();
-    }
-    if (ch != ' ')
-      error("expected space after address");
-    ch = read_char();
-    if (words > address)
-      error("address 0x%08x below parsed words 0x%08x", address,
-            (unsigned)(words - 1));
-    while (words < address) {
-      for (unsigned byte = 0; byte != 4; byte++)
-        fputc((unsigned char)0, output_file);
-      words++;
     }
     unsigned data = 0;
     for (unsigned nibble = 0; nibble != 8; nibble++) {
@@ -174,7 +193,7 @@ int main(int argc, char **argv) {
       ch = read_char();
     }
     if (ch != ' ' && ch != '\t' && ch != ';' && ch != '\n')
-      error("expected white-space after data");
+      error("expected only new-line or white-space after data");
 
     if (words > UINT_MAX)
       error("maximum data capacity exhausted");

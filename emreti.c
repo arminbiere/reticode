@@ -102,7 +102,7 @@ static const char *usage =
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {
-  fflush (stdout);
+  fflush(stdout);
   fputs("emreti: error: ", stderr);
   va_list ap;
   va_start(ap, fmt);
@@ -117,7 +117,7 @@ static void die(const char *fmt, ...) {
 static void warn(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 static void warn(const char *fmt, ...) {
-  fflush (stdout);
+  fflush(stdout);
   fputs("emreti: warning: ", stderr);
   va_list ap;
   va_start(ap, fmt);
@@ -754,8 +754,8 @@ int main(int argc, char **argv) {
       if (address >= shadow.data || !shadow.valid[address]) {
         if (debug > 0) {
           warn("stopping on reading uninitialized 'data[0x%x]'", address);
-	  break;
-	}
+          break;
+        }
         if (!debug)
           warn("continuing after reading uninitialized 'data[0x%x]' "
                "(use '-i' so squelch such messages, or '-g' to stop)",
@@ -779,7 +779,7 @@ int main(int argc, char **argv) {
 
     if (M_write) {
 
-      if ((size_t) address >= (size_t) CAPACITY)
+      if ((size_t)address >= (size_t)CAPACITY)
         die("can not write 'data[0x%x]' above address 0x%x", address,
             (unsigned)(CAPACITY - 1));
 

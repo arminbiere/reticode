@@ -13,7 +13,7 @@ emreti: emreti.c disreti.h makefile
 ranreti: ranreti.c disreti.h makefile
 	$(COMPILE) -o $@ $<
 retiquiz: retiquiz.c disreti.h makefile
-	$(COMPILE) -o $@ $<
+	$(COMPILE) -o $@ $< -lncurses
 format:
 	clang-format -i *.[ch]
 clean:
