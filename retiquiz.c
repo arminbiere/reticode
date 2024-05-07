@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
       questions_string = arg;
     else
       die("too many arguments '%s', '%s' and '%s'", seed_string,
-          questions_string, arg);
+	  questions_string, arg);
   }
 
   // Parse seed string or set to random seed.
@@ -137,13 +137,13 @@ int main(int argc, char **argv) {
     for (const char *p = seed_string; *p; p++) {
       int ch = *p;
       if (!isdigit(ch))
-        die("invalid seed '%s'", seed_string);
+	die("invalid seed '%s'", seed_string);
       if (max_seed / 10 < seed)
-        die("seed '%s' exceeds maximum", seed_string);
+	die("seed '%s' exceeds maximum", seed_string);
       seed *= 10;
       int digit = ch - '0';
       if (max_seed - digit < seed)
-        die("seed '%s' exceeds maximum", seed_string);
+	die("seed '%s' exceeds maximum", seed_string);
       seed += digit;
     }
   } else {
@@ -163,13 +163,13 @@ int main(int argc, char **argv) {
     const uint64_t max_questions = (uint64_t)1 << 32;
     while ((ch = *p++)) {
       if (!isdigit(ch))
-        die("invalid number of questions '%s'", questions_string);
+	die("invalid number of questions '%s'", questions_string);
       if (max_questions / 10 < ask)
-        die("number of questions '%s' exceed maximum", questions_string);
+	die("number of questions '%s' exceed maximum", questions_string);
       ask *= 10;
       int digit = ch - '0';
       if (max_questions - digit < ask)
-        die("number of questions '%s' exceed maximum", questions_string);
+	die("number of questions '%s' exceed maximum", questions_string);
       ask += digit;
     }
   } else
@@ -178,10 +178,13 @@ int main(int argc, char **argv) {
   init();
 
   printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
-  printf("INSTRUCTION           ; PC      CODE\n");
+  printf("TODO: does not check and correct answers yet!!!\n");
+  printf("INSTRUCTION           ; PC       CODE\n");
 
   char instruction[disassembled_reti_code_length];
   char hex[9];
+
+  uint64_t pc = 0;
 
   while (asked != ask) {
 
@@ -189,7 +192,8 @@ int main(int argc, char **argv) {
 
     // Restrict to small negative and positive numbers.
 
-    if (code & 0x00800000)
+    unsigned type = code >> 30;
+    if (type != 1 && type != 2 && (code & 0x00800000))
       code |= 0x00ffffe0;
     else
       code &= 0xff00001f;
@@ -202,25 +206,30 @@ int main(int argc, char **argv) {
 
     bool disassemble = true; // random1();
     if (disassemble) {
-      unsigned pos = pick32(0, 3);
-      assert(pos < 4);
-      if (pos > 1)
-        pos += 4;
+      unsigned pos;
+      if (code & 0x00800000)
+	pos = pick32(0, 7);
+      else {
+	pos = pick32(0, 3);
+	assert(pos < 4);
+	if (pos > 1)
+	  pos += 4;
+      }
       assert(pos < 8);
       hex[pos] = '_';
-      printf("%-21s ; %s", instruction, hex);
+      printf("%-21s ; %08x %s", instruction, (unsigned)pc++, hex);
       for (unsigned i = 0; i != 8 - pos; i++)
-        fputc('', stdout), fflush(stdout);
+	fputc('', stdout), fflush(stdout);
       fflush(stdout);
 
       int ch;
       ssize_t chars = read(STDIN_FILENO, &ch, 1);
       if (isprint(ch))
-        fputc(ch, stdout);
+	fputc(ch, stdout);
       fputc('\n', stdout);
       fflush(stdout);
       if (chars != 1 || ch == 'q')
-        break;
+	break;
     }
   }
 
