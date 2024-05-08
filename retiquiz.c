@@ -23,6 +23,7 @@ static const char * usage =
 #include <stdint.h>    // uint64_t
 #include <stdio.h>     // fputs, printf
 #include <stdlib.h>    // exit
+#include <sys/time.h>  // gettimeofday
 #include <sys/times.h> // tms, times
 #include <sys/types.h> // getpid
 #include <termios.h>   // tcgetattr, tcsetattr
@@ -118,6 +119,13 @@ static void init(void) {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+static double wall_clock_time(void) {
+  struct timeval tv;
+  if (gettimeofday(&tv, 0))
+    return 0;
+  return 1e-6 * tv.tv_usec + tv.tv_sec;
+}
+
 static double percent(double a, double b) { return 100 * (b ? a / b : 0); }
 
 static bool interactive = true;
@@ -203,8 +211,9 @@ int main(int argc, char **argv) {
   generator = seed;
   init();
 
+  double start_time = wall_clock_time();
+
   color(HEADER);
-  ;
   printf("; ReTI Machine Code Quiz\n");
   color(NORMAL);
   printf("; retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
@@ -216,7 +225,7 @@ int main(int argc, char **argv) {
     printf("; Generating %" PRIu64 " questions and answers.\n", ask);
   printf(";\n");
   color(HEADER);
-  printf("INSTRUCTION       ; PC       CODE\n");
+  printf("INSTRUCTION         ; PC       CODE\n");
   color(NORMAL);
 
   char instruction[disassembled_reti_code_length];
@@ -287,7 +296,7 @@ int main(int argc, char **argv) {
       }
       assert(pos < 8);
       query[pos] = '_';
-      printf("%-17s ; %08x %s", instruction, (unsigned)pc++, query);
+      printf("%-19s ; %08x %s", instruction, (unsigned)pc++, query);
       for (unsigned i = 0; i != 8 - pos; i++)
 	fputc('\b', stdout);
       fflush(stdout);
@@ -349,8 +358,8 @@ int main(int argc, char **argv) {
 	color(OTHER);
 	fputs(" at ", stdout);
 	color(NORMAL);
-	color (WHITE);
-	printf ("I[%u:%u]", hi, low);
+	color(WHITE);
+	printf("I[%u:%u]", hi, low);
       }
       color(NORMAL);
       fputc('\n', stdout);
@@ -378,6 +387,13 @@ int main(int argc, char **argv) {
   color(NORMAL);
   printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(incorrect, asked),
 	 incorrect, asked);
+
+  double end_time = wall_clock_time();
+  double seconds = end_time - start_time;
+  color (HEADER);
+  printf("TIME\n");
+  color (NORMAL);
+  printf ("%.2f seconds\n", seconds);
 
   reset();
   return 0;
