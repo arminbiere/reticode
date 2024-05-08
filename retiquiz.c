@@ -9,9 +9,9 @@ static const char * usage =
 "  -n | --non-interactive  only prints questions\n"
 "\n"
 "This tool generates questions around the ReTI assembler language.\n"
-"By default ask '16' random questions (can be set with '<questions>').\n"
-"If the seed is '-' then still a random seed is generated which is\n"
-"useful in combination if a different number of questions is needed.\n"
+"By default '16' random questions are asked (set with '<questions>').\n"
+"If seed is '-' then still a random seed is generated which is useful\n"
+"if a different number of questions is needed.\n"
 ;
 
 // clang-format on
@@ -283,7 +283,7 @@ int main(int argc, char **argv) {
         code &= 0xff000000; // force zero immediate
     }
 
-    // Now dissamble for printing.
+    // Now disassamble for printing.
 
     if (!disassemble_reti_code(code, instruction))
       continue;
@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
     unsigned answer_code = code & ~(0xf << shift);
     answer_code |= nibble << shift;
 
-    // Dissamble and check that it produces the same assembler.
+    // Disassamble and check that it produces the same assembler.
 
     bool matched = disassemble_reti_code(answer_code, answer) &&
                    !strcmp(instruction, answer);
