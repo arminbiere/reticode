@@ -13,7 +13,8 @@ static const char *usage =
 "\n"
 "  -h | --help   print this command line option summary\n"
 "  -g | --debug  stop on unitialized data memory access\n"
-"  -i | --ignore no warning on unitialized data memory access\n"
+"  -i | --ignore ignore warnings on unitialized data\n"
+"  -f | --force  force reading non-binary assembler files\n"
 #ifndef NSTEPPING
 "  -s | --step   step through and print each instruction\n"
 #endif
@@ -93,6 +94,17 @@ static const char *usage =
 
 //----------------------------------------------------------------------------//
 
+// We have factored out a simple parser for reading both code and data files.
+
+struct parser {
+  FILE *file;
+  const char *name;
+  size_t words, bytes;
+  bool binary;
+};
+
+//----------------------------------------------------------------------------//
+
 // Exit with error message with 'printf' style usage.
 //
 // The following declaration lets the compiler produce error messages if the
@@ -149,6 +161,65 @@ static bool is_number_string(const char *str) {
 
 //----------------------------------------------------------------------------//
 
+static void init_parser(struct parser *parser, FILE *file, const char *name) {
+  parser->file = file;
+  parser->name = name;
+  parser->words = parser->bytes = 0;
+  parser->binary = false;
+}
+
+static int next_char(struct parser *parser) {
+  int res = getc(parser->file);
+  if (res != EOF) {
+    parser->bytes++;
+    if (!parser->binary && res != ' ' && res != '\n' && !isprint(res))
+      parser->binary = true;
+  }
+  return res;
+}
+
+static void error(struct parser *, const char *, ...)
+    __attribute((format(printf, 2, 3)));
+
+static void error(struct parser *parser, const char *fmt, ...) {
+  fprintf(stderr, "emreti: parser error in word %zu after %zu bytes in '%s': ",
+          parser->words, parser->bytes, parser->name);
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  fputc('\n', stderr);
+  exit(1);
+}
+
+static bool next_word(struct parser *parser, unsigned *word_ptr) {
+  int ch = next_char(parser);
+  if (ch == EOF)
+    return false;
+  parser->words++;
+  unsigned char byte = (unsigned char)ch;
+  unsigned word = byte << 0; // Little-endian!
+  ch = next_char(parser);
+  if (ch == EOF)
+    error(parser, "word incomplete: three bytes missing");
+  byte = (unsigned char)ch;
+  word |= byte << 8;
+  ch = next_char(parser);
+  if (ch == EOF)
+    error(parser, "word incomplete: two bytes missing");
+  byte = (unsigned char)ch;
+  word |= byte << 16;
+  ch = next_char(parser);
+  if (ch == EOF)
+    error(parser, "word incomplete: one byte missing");
+  byte = (unsigned char)ch;
+  word |= byte << 24;
+  *word_ptr = word;
+  return true;
+}
+
+//----------------------------------------------------------------------------//
+
 // The whole emulator runs in the main function.
 
 int main(int argc, char **argv) {
@@ -160,8 +231,8 @@ int main(int argc, char **argv) {
   bool step = false;
 #endif
   size_t steps = 0;
-
-  int debug = 0; //-1=ignore, 0=warning, 1=abort on unitialized data access.
+  int debug = 0; //-1=ignore, 0=warning, 1=abort.
+  bool force = 0;
 
   const char *code_path = 0;
   const char *data_path = 0;
@@ -283,8 +354,10 @@ int main(int argc, char **argv) {
     char instruction[32];
     size_t instruction_length = 0;
 #endif
+    struct parser parser;
+    init_parser(&parser, code_file, code_path);
     unsigned code;
-    while (fread(&code, sizeof code, 1, code_file) == 1) {
+    while (next_word(&parser, &code)) {
       if (shadow.code == CAPACITY)
         die("capacity of code area reached");
       else
@@ -296,6 +369,24 @@ int main(int argc, char **argv) {
           instruction_length = length;
       }
 #endif
+    }
+    if (!force && parser.words && !parser.binary) {
+      const char *magic = "; ranreti ";
+      const size_t magic_len = strlen(magic);
+      const size_t compare_len =
+          magic_len < parser.bytes ? magic_len : parser.bytes;
+      if (!strncmp(magic, (char *)reti.code, compare_len))
+        die("non-binary '%s' looks like assembler and not ReTI machine code "
+            "(use '-f' to force reading)",
+            code_path);
+      else if (parser.words > 2)
+        die("non-binary '%s' with %zu words does not look like machine code "
+            "(use '-f' to force reading)",
+            code_path, parser.words);
+      else
+        warn("non-binary '%s' with %s does not look like machine code "
+             "(use '-f' to squelch this warning)",
+             code_path, parser.words == 1 ? "one word" : "two words");
     }
     if (close_code_file)
       fclose(code_file);
@@ -315,8 +406,10 @@ int main(int argc, char **argv) {
       die("data file '%s' does not exist", data_path);
     else if (!(data_file = fopen(data_path, "r")))
       die("can not read data file '%s'", data_path);
+    struct parser parser;
+    init_parser(&parser, data_file, data_path);
     unsigned word;
-    while (fread(&word, sizeof word, 1, data_file) == 1)
+    while (next_word(&parser, &word)) {
       if (shadow.data == CAPACITY)
         die("capacity of data area reached");
       else {
@@ -324,6 +417,7 @@ int main(int argc, char **argv) {
         reti.data[shadow.data] = word;
         shadow.data++;
       }
+    }
     if (close_data_file)
       fclose(data_file);
   }
