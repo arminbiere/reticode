@@ -182,7 +182,7 @@ static void error(struct parser *, const char *, ...)
     __attribute((format(printf, 2, 3)));
 
 static void error(struct parser *parser, const char *fmt, ...) {
-  fprintf(stderr, "emreti: parser error in word %zu after %zu bytes in '%s': ",
+  fprintf(stderr, "emreti: parse error: in word %zu after %zu bytes in '%s': ",
           parser->words, parser->bytes, parser->name);
   va_list ap;
   va_start(ap, fmt);
