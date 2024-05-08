@@ -95,9 +95,11 @@ static unsigned pick32(unsigned l, unsigned r) {
   return res;
 }
 
-// Random bit also should use the floating point version.
+// Global options.
 
-// static bool random1(void) { return pick32(0, 1); }
+static bool interactive = true;
+
+// Statistics.
 
 static volatile uint64_t ask;
 static volatile uint64_t asked;
@@ -109,11 +111,16 @@ static volatile uint64_t incorrect;
 
 static struct termios original;
 
-static void reset(void) { tcsetattr(STDIN_FILENO, TCSAFLUSH, &original); }
+static void reset_terminal(void) {
+  assert (interactive);
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
+}
 
-static void init(void) {
+static void init_terminal(void) {
+  if (!interactive)
+    return;
   tcgetattr(STDIN_FILENO, &original);
-  atexit(reset);
+  atexit(reset_terminal);
   struct termios raw = original;
   raw.c_lflag &= ~(ECHO | ICANON);
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
@@ -127,8 +134,6 @@ static double wall_clock_time(void) {
 }
 
 static double percent(double a, double b) { return 100 * (b ? a / b : 0); }
-
-static bool interactive = true;
 
 static void color(const char *color_code) {
   if (interactive)
@@ -157,7 +162,7 @@ int main(int argc, char **argv) {
       questions_string = arg;
     else
       die("too many arguments '%s', '%s' and '%s'", seed_string,
-          questions_string, arg);
+	  questions_string, arg);
   }
 
   // Parse seed string or set to random seed.
@@ -172,21 +177,21 @@ int main(int argc, char **argv) {
     for (const char *p = seed_string; *p; p++) {
       int ch = *p;
       if (!isdigit(ch))
-        die("invalid seed '%s'", seed_string);
+	die("invalid seed '%s'", seed_string);
       if (max_seed / 10 < seed)
-        die("seed '%s' exceeds maximum", seed_string);
+	die("seed '%s' exceeds maximum", seed_string);
       seed *= 10;
       int digit = ch - '0';
       if (max_seed - digit < seed)
-        die("seed '%s' exceeds maximum", seed_string);
+	die("seed '%s' exceeds maximum", seed_string);
       seed += digit;
     }
   } else {
     struct tms tp;
     generator = (uint64_t)times(&tp); // Use time.
-    (void)random64();                 // Hash time.
+    (void)random64();		      // Hash time.
     generator ^= (uint64_t)getpid();  // Mix in process identifier.
-    (void)random64();                 // Hash both.
+    (void)random64();		      // Hash both.
     seed = generator;
   }
 
@@ -201,26 +206,26 @@ int main(int argc, char **argv) {
     const uint64_t max_questions = (uint64_t)1 << 32;
     while ((ch = *p++)) {
       if (!isdigit(ch))
-        die("invalid number of questions '%s'", questions_string);
+	die("invalid number of questions '%s'", questions_string);
       if (max_questions / 10 < ask)
-        die("number of questions '%s' exceed maximum", questions_string);
+	die("number of questions '%s' exceed maximum", questions_string);
       ask *= 10;
       int digit = ch - '0';
       if (max_questions - digit < ask)
-        die("number of questions '%s' exceed maximum", questions_string);
+	die("number of questions '%s' exceed maximum", questions_string);
       ask += digit;
     }
   } else
     ask = 16;
 
   generator = seed;
-  init();
+  init_terminal();
 
   double start_time = wall_clock_time();
 
   if (interactive) {
     color(HEADER);
-    printf("ReTI Machine Code Quiz Version 0.0.0\n");
+    printf("ReTI Machine Code Quiz Version 0.0.1\n");
     color(NORMAL);
     printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
     printf("Enter hexadecimal digits as an answer or\n");
@@ -254,18 +259,18 @@ int main(int argc, char **argv) {
 
     // Force irrelevant '*' to '0'.
 
-    if (type == 1)         // LOAD
+    if (type == 1)	   // LOAD
       code &= ~0x0c000000; // force S to zero
     if (type == 2) {
-      if (mode == 3)         // MOVE
-        code &= 0xff000000;  // force immediate to zero
-      else                   // STORE
-        code &= ~0x0f000000; // force S and D to zero
+      if (mode == 3)	     // MOVE
+	code &= 0xff000000;  // force immediate to zero
+      else		     // STORE
+	code &= ~0x0f000000; // force S and D to zero
     }
-    if (type == 3) {       // JUMP
+    if (type == 3) {	   // JUMP
       code &= ~0x07000000; // force the 3 bits to zero
       if (comparison == 0 || comparison == 7)
-        code &= 0xff000000; // force zero immediate
+	code &= 0xff000000; // force zero immediate
     }
 
     if (!disassemble_reti_code(code, instruction))
@@ -280,25 +285,31 @@ int main(int argc, char **argv) {
       pos = pick32(0, 7);
     else if (type == 2) {
       if (mode == 3) // MOVE thus only first two nibbles.
-        pos = pick32(0, 1);
+	pos = pick32(0, 1);
       else { // STORE
-        pos = pick32(0, 2);
-        if (pos)
-          pos += 5;
+	pos = pick32(0, 2);
+	if (pos)
+	  pos += 5;
       }
     } else {
       pos = pick32(0, 3);
       if (type == 3 && (comparison == 0 || comparison == 7))
-        pos &= 1;
+	pos &= 1;
       else {
-        assert(pos < 4);
-        if (pos > 1)
-          pos += 4;
+	assert(pos < 4);
+	if (pos > 1)
+	  pos += 4;
       }
     }
     assert(pos < 8);
     query[pos] = '_';
     printf("%-19s ; %08x %s", instruction, (unsigned)pc++, query);
+    if (!interactive) {
+      unsigned low = 4 * (7 - pos);
+      unsigned hi = low + 3;
+      printf (" expected %c in %s at I[%u:%u]\n", expected[pos], expected, hi, low);
+      continue;
+    }
     for (unsigned i = 0; i != 8 - pos; i++)
       fputc('\b', stdout);
     fflush(stdout);
@@ -328,7 +339,7 @@ int main(int argc, char **argv) {
     unsigned answer_code = code & ~(0xf << shift);
     answer_code |= nibble << shift;
     bool matched = disassemble_reti_code(answer_code, answer) &&
-                   !strcmp(instruction, answer);
+		   !strcmp(instruction, answer);
     color(matched ? GREEN : RED);
     fputc(ch, stdout);
     color(NORMAL);
@@ -349,12 +360,12 @@ int main(int argc, char **argv) {
       color(BOLD);
       unsigned i = 0;
       while (i != pos)
-        fputc(expected[i++], stdout);
+	fputc(expected[i++], stdout);
       color(GREEN);
       fputc(expected[pos], stdout);
       color(OTHER);
       while (++i != 8)
-        fputc(expected[i], stdout);
+	fputc(expected[i], stdout);
       unsigned low = 4 * (7 - pos);
       unsigned hi = low + 3;
       color(NORMAL);
@@ -371,45 +382,48 @@ int main(int argc, char **argv) {
       break;
   }
 
-  color(HEADER);
-  printf("RESULT\n");
-  color(NORMAL);
-  printf("asked       %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(asked, ask),
-         asked, ask);
-  printf("answered    %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
-         percent(answered, asked), answered, asked);
-  printf("correct   ");
-  color(GREEN);
-  fputs(OK, stdout);
-  color(NORMAL);
-  printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(correct, asked),
-         correct, asked);
-  printf("incorrect ");
-  color(RED);
-  fputs(XX, stdout);
-  color(NORMAL);
-  printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(incorrect, asked),
-         incorrect, asked);
+  if (interactive) {
+    color(HEADER);
+    printf("RESULT\n");
+    color(NORMAL);
+    printf("asked       %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
+	   percent(asked, ask), asked, ask);
+    printf("answered    %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
+	   percent(answered, asked), answered, asked);
+    printf("correct   ");
+    color(GREEN);
+    fputs(OK, stdout);
+    color(NORMAL);
+    printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(correct, asked),
+	   correct, asked);
+    printf("incorrect ");
+    color(RED);
+    fputs(XX, stdout);
+    color(NORMAL);
+    printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(incorrect, asked),
+	   incorrect, asked);
 
-  color(HEADER);
-  printf("POINTS\n");
-  color(NORMAL);
-  if (correct < incorrect)
-    printf("0 points   (more answers incorrect than correct)\n");
-  else {
-    uint64_t points = correct - incorrect;
-    printf("%" PRIu64 " points %.0f%%   (%" PRIu64 " correct - %" PRIu64
-           " incorrect)\n",
-           points, percent(correct, ask), correct, incorrect);
+    color(HEADER);
+    printf("POINTS\n");
+    color(NORMAL);
+    if (correct < incorrect)
+      printf("0 points   (more answers incorrect than correct)\n");
+    else {
+      uint64_t points = correct - incorrect;
+      printf("%" PRIu64 " points %.0f%%   (%" PRIu64 " correct - %" PRIu64
+	     " incorrect)\n",
+	     points, percent(correct, ask), correct, incorrect);
+    }
+
+    double end_time = wall_clock_time();
+    double seconds = end_time - start_time;
+    color(HEADER);
+    printf("TIME\n");
+    color(NORMAL);
+    printf("%.2f seconds\n", seconds);
+
+    reset_terminal();
   }
 
-  double end_time = wall_clock_time();
-  double seconds = end_time - start_time;
-  color(HEADER);
-  printf("TIME\n");
-  color(NORMAL);
-  printf("%.2f seconds\n", seconds);
-
-  reset();
   return 0;
 }
