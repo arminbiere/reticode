@@ -9,7 +9,9 @@ static const char * usage =
 "  -n | --non-interactive  only prints questions\n"
 "\n"
 "This tool generates questions around the ReTI assembler language.\n"
-"By default it asks '16' random questions (can be set with '<questions>').\n"
+"By default ask '16' random questions (can be set with '<questions>').\n"
+"If the seed is '-' then still a random seed is generated which is\n"
+"useful in combination if a different number of questions is needed.\n"
 ;
 
 // clang-format on
@@ -104,6 +106,7 @@ static bool interactive = true;
 static volatile uint64_t ask;
 static volatile uint64_t asked;
 static volatile uint64_t answered;
+static volatile uint64_t skipped;
 static volatile uint64_t correct;
 static volatile uint64_t incorrect;
 
@@ -248,6 +251,9 @@ int main(int argc, char **argv) {
   uint64_t pc = 0;
 
   while (asked != ask) {
+
+    // Generate a really random 32-bit code word first.
+
     unsigned code = random32();
 
     // Restrict immedidates to small negative and positive numbers.
@@ -277,12 +283,18 @@ int main(int argc, char **argv) {
         code &= 0xff000000; // force zero immediate
     }
 
+    // Now dissamble for printing.
+
     if (!disassemble_reti_code(code, instruction))
       continue;
+
+    // We are now ready to present the 'query'.
 
     asked++;
     sprintf(expected, "%08x", code);
     strcpy(query, expected);
+
+    // Also restrict the position of '_' depending on instruction.
 
     unsigned pos;
     if (code & 0x00800000) // something with a negative immediate
@@ -306,23 +318,51 @@ int main(int argc, char **argv) {
       }
     }
     assert(pos < 8);
+
+    // Overwrite query character at 'pos' with the template '_'.
+
     query[pos] = '_';
     printf("%-19s ; %08x %s", instruction, (unsigned)pc++, query);
+
+    // In non-interative mode we just print the solution and continue.
+
     if (!interactive) {
       printf("     %c    %s\n", expected[pos], expected);
       continue;
     }
+
+    // For interactive mode we go backward with '\b' to the position of '_'.
+
     for (unsigned i = 0; i != 8 - pos; i++)
       fputc('\b', stdout);
     fflush(stdout);
+
+    // And now read from the terminal a character.
+
     int ch;
   READ1:;
     ssize_t chars = read(STDIN_FILENO, &ch, 1);
-    if (chars == 1 && ch == 'q') {
+
+    // Just quit if we failed to read a character or read 'q'.
+
+    if (chars != 1 || ch == 'q') {
       fputc('\n', stdout);
       fflush(stdout);
       break;
     }
+
+    if (ch == ' ') {
+      skipped++;
+      color(OTHER);
+      fputc('_', stdout);
+      color(NORMAL);
+      fputs(query + pos + 1, stdout);
+      fputc('\n', stdout);
+      continue;
+    }
+
+    // We only allow hexadecimal digits.
+
     unsigned nibble = 0;
     if ('A' <= ch && ch <= 'F') {
       ch = ch - 'A' + 'a';
@@ -332,16 +372,23 @@ int main(int argc, char **argv) {
     else if ('0' <= ch && ch <= '9') {
       nibble = ch - '0';
     } else {
-      fputc('\a', stdout);
+      fputc('\a', stdout); // Alert and read next character.
       fflush(stdout);
       goto READ1;
     }
+
+    // Compute the answered code.
+
     answered++;
     unsigned shift = (7 - pos) * 4;
     unsigned answer_code = code & ~(0xf << shift);
     answer_code |= nibble << shift;
+
+    // Dissamble and check that it produces the same assembler.
+
     bool matched = disassemble_reti_code(answer_code, answer) &&
                    !strcmp(instruction, answer);
+
     color(matched ? GREEN : RED);
     fputc(ch, stdout);
     color(NORMAL);
@@ -349,9 +396,10 @@ int main(int argc, char **argv) {
     fputc(' ', stdout);
     fputs(matched ? GREEN : RED, stdout);
     fputs(matched ? OK : XX, stdout);
-    if (matched) {
+
+    if (matched)
       correct++;
-    } else {
+    else {
       incorrect++;
       color(OTHER);
       fputs("  expected ", stdout);
@@ -377,11 +425,10 @@ int main(int argc, char **argv) {
       color(WHITE);
       printf("I[%u:%u]", hi, low);
     }
+
     color(NORMAL);
     fputc('\n', stdout);
     fflush(stdout);
-    if (chars != 1 || ch == 'q')
-      break;
   }
 
   if (interactive) {
@@ -392,6 +439,8 @@ int main(int argc, char **argv) {
            percent(asked, ask), asked, ask);
     printf("answered    %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
            percent(answered, asked), answered, asked);
+    printf("skipped     %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
+           percent(skipped, asked), skipped, asked);
     printf("correct   ");
     color(GREEN);
     fputs(OK, stdout);
