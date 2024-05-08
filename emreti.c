@@ -201,17 +201,17 @@ static bool next_word(struct parser *parser, unsigned *word_ptr) {
   unsigned word = byte << 0; // Little-endian!
   ch = next_char(parser);
   if (ch == EOF)
-    error(parser, "word incomplete: three bytes missing");
+    error(parser, "end-of-file before word complete: three bytes missing");
   byte = (unsigned char)ch;
   word |= byte << 8;
   ch = next_char(parser);
   if (ch == EOF)
-    error(parser, "word incomplete: two bytes missing");
+    error(parser, "end-of-file before word complete: two bytes missing");
   byte = (unsigned char)ch;
   word |= byte << 16;
   ch = next_char(parser);
   if (ch == EOF)
-    error(parser, "word incomplete: one byte missing");
+    error(parser, "end-of-file before word complete: one byte missing");
   byte = (unsigned char)ch;
   word |= byte << 24;
   *word_ptr = word;
@@ -255,6 +255,8 @@ int main(int argc, char **argv) {
       debug = 1;
     else if (!strcmp(arg, "-i") || !strcmp(arg, "--ignore"))
       debug = -1;
+    else if (!strcmp(arg, "-f") || !strcmp(arg, "--force"))
+      force = true;
     else if (arg[0] == '-' && arg[1])
       die("invalid option '%s' (try '-h')", arg);
     else if (is_number_string(arg)) {
@@ -376,7 +378,7 @@ int main(int argc, char **argv) {
       const size_t compare_len =
           magic_len < parser.bytes ? magic_len : parser.bytes;
       if (!strncmp(magic, (char *)reti.code, compare_len))
-        die("non-binary '%s' looks like assembler and not ReTI machine code "
+        die("non-binary '%s' looks like an assembler file and not machine code "
             "(use '-f' to force reading)",
             code_path);
       else if (parser.words > 2)
