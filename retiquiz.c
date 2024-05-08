@@ -223,7 +223,8 @@ int main(int argc, char **argv) {
     printf("ReTI Machine Code Quiz Version 0.0.0\n");
     color(NORMAL);
     printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
-    printf("Enter hexadecimal digits as answer or 'q' to quit.\n");
+    printf("Enter hexadecimal digits as an answer or\n");
+    printf("space ' ' to skip a question or 'q' to quit.\n");
     printf("For irrelevant '*' in the machine code use '0'.\n");
     printf("Asking %" PRIu64 " questions.\n", ask);
     color(HEADER);
