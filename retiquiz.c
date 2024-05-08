@@ -5,12 +5,11 @@ static const char * usage =
 "\n"
 "where '<option>' is one of the following\n"
 "\n"
-"  -h | --help         print this command line option summary\n"
+"  -h | --help             print this command line option summary\n"
+"  -n | --non-interactive  only prints questions\n"
 "\n"
 "This tool generates questions around the ReTI assembler language.\n"
-"By default it asks '10' random questions (can be set with '<questions>')\n"
-"and prints a solution after the user has entered an answer.  At the end\n"
-"the number of correctly solved questions is printed.\n"
+"By default it asks '16' random questions (can be set with '<questions>').\n"
 ;
 
 // clang-format on
@@ -28,6 +27,21 @@ static const char * usage =
 #include <sys/types.h> // getpid
 #include <termios.h>   // tcgetattr, tcsetattr
 #include <unistd.h>    // getpid
+
+// Terminal color escape codes.
+
+#define BOLD "\033[1m"
+#define GREEN "\033[32m"
+#define HEADER "\033[35m"
+#define NORMAL "\033[0m"
+#define OTHER "\033[33m"
+#define RED "\033[31m"
+#define WHITE "\033[34m"
+
+// Unicode of OK and XX (failure).
+
+#define OK "✓"
+#define XX "✗"
 
 static void die(const char *, ...) __attribute__((format(printf, 1, 2)));
 
@@ -104,6 +118,15 @@ static void init(void) {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+static double percent(double a, double b) { return 100 * (b ? a / b : 0); }
+
+static bool interactive = true;
+
+static void color(const char *color_code) {
+  if (interactive)
+    fputs(color_code, stdout);
+}
+
 int main(int argc, char **argv) {
 
   // First parse options and get seed and questions strings.
@@ -116,7 +139,9 @@ int main(int argc, char **argv) {
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
       fputs(usage, stdout);
       exit(0);
-    } else if (!seed_string)
+    } else if (!strcmp(arg, "n") || !strcmp(arg, "--non-interactive"))
+      interactive = false;
+    else if (!seed_string)
       seed_string = arg;
     else if (!questions_string)
       questions_string = arg;
@@ -173,51 +198,96 @@ int main(int argc, char **argv) {
       ask += digit;
     }
   } else
-    ask = 8;
+    ask = 16;
 
+  generator = seed;
   init();
 
-  printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
-  printf("TODO: does not check and correct answers yet!!!\n");
-  printf("INSTRUCTION           ; PC       CODE\n");
+  color(HEADER);
+  ;
+  printf("; ReTI Machine Code Quiz\n");
+  color(NORMAL);
+  printf("; retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
+  printf(";\n");
+  if (interactive) {
+    printf("; Enter hexadecimal digits as answer or 'q' to quit.\n");
+    printf("; For irrelevant '*' in the machine code use '0'.\n");
+  } else
+    printf("; Generating %" PRIu64 " questions and answers.\n", ask);
+  printf(";\n");
+  color(HEADER);
+  printf("INSTRUCTION       ; PC       CODE\n");
+  color(NORMAL);
 
   char instruction[disassembled_reti_code_length];
-  char hex[9];
+  char answer[disassembled_reti_code_length];
+  char expected[9], query[9];
 
   uint64_t pc = 0;
 
   while (asked != ask) {
-
     unsigned code = random32();
 
-    // Restrict to small negative and positive numbers.
+    // Restrict immedidates to small negative and positive numbers.
 
-    unsigned type = code >> 30;
+    const unsigned type = code >> 30;
+    const unsigned mode = (code >> 28) & 3;
+    const unsigned comparison = (code >> 27) & 7;
+
     if (type != 1 && type != 2 && (code & 0x00800000))
       code |= 0x00ffffe0;
     else
       code &= 0xff00001f;
 
+    // Force irrelevant '*' to '0'.
+
+    if (type == 1)	   // LOAD
+      code &= ~0x0c000000; // force S to zero
+    if (type == 2) {
+      if (mode == 3)	     // MOVE
+	code &= 0xff000000;  // force immediate to zero
+      else		     // STORE
+	code &= ~0x0f000000; // force S and D to zero
+    }
+    if (type == 3) {	   // JUMP
+      code &= ~0x07000000; // force the 3 bits to zero
+      if (comparison == 0 || comparison == 7)
+	code &= 0xff000000; // force zero immediate
+    }
+
     if (!disassemble_reti_code(code, instruction))
       continue;
 
     asked++;
-    sprintf(hex, "%08x", code);
+    sprintf(expected, "%08x", code);
+    strcpy(query, expected);
 
     bool disassemble = true; // random1();
     if (disassemble) {
       unsigned pos;
-      if (code & 0x00800000)
+      if (code & 0x00800000) // something with a negative immediate
 	pos = pick32(0, 7);
-      else {
+      else if (type == 2) {
+	if (mode == 3) // MOVE thus only first two nibbles.
+	  pos = pick32(0, 1);
+	else { // STORE
+	  pos = pick32(0, 2);
+	  if (pos)
+	    pos += 5;
+	}
+      } else {
 	pos = pick32(0, 3);
-	assert(pos < 4);
-	if (pos > 1)
-	  pos += 4;
+	if (type == 3 && (comparison == 0 || comparison == 7))
+	  pos &= 1;
+	else {
+	  assert(pos < 4);
+	  if (pos > 1)
+	    pos += 4;
+	}
       }
       assert(pos < 8);
-      hex[pos] = '_';
-      printf("%-21s ; %08x %s", instruction, (unsigned)pc++, hex);
+      query[pos] = '_';
+      printf("%-17s ; %08x %s", instruction, (unsigned)pc++, query);
       for (unsigned i = 0; i != 8 - pos; i++)
 	fputc('\b', stdout);
       fflush(stdout);
@@ -226,27 +296,88 @@ int main(int argc, char **argv) {
       ssize_t chars = read(STDIN_FILENO, &ch, 1);
       if (chars == 1 && ch == 'q') {
 	fputc('\n', stdout);
-	fflush (stdout);
+	fflush(stdout);
 	break;
-      } if ('A' <= ch && ch <= 'F')
+      }
+      unsigned nibble = 0;
+      if ('A' <= ch && ch <= 'F') {
 	ch = ch - 'A' + 'a';
-      else if ('a' <= ch && ch <= 'f')
-	;
-      else if ('0' <= ch && ch <= '0')
-	;
-      else {
+	nibble = ch - 'a' + 10;
+      } else if ('a' <= ch && ch <= 'f')
+	nibble = ch - 'a' + 10;
+      else if ('0' <= ch && ch <= '9') {
+	nibble = ch - '0';
+      } else {
 	fputc('\a', stdout);
 	fflush(stdout);
 	goto READ1;
       }
-      if (isprint(ch))
-	fputc(ch, stdout);
+      unsigned shift = (7 - pos) * 4;
+      unsigned answer_code = code & ~(0xf << shift);
+      answer_code |= nibble << shift;
+      bool matched = disassemble_reti_code(answer_code, answer) &&
+		     !strcmp(instruction, answer);
+      color(matched ? GREEN : RED);
+      fputc(ch, stdout);
+      color(NORMAL);
+      fputs(query + pos + 1, stdout);
+      fputc(' ', stdout);
+      fputs(matched ? GREEN : RED, stdout);
+      fputs(matched ? OK : XX, stdout);
+      if (matched) {
+	correct++;
+      } else {
+	incorrect++;
+	color(OTHER);
+	fputs("  expected ", stdout);
+	color(GREEN);
+	fputc(expected[pos], stdout);
+	color(OTHER);
+	fputs(" in ", stdout);
+	color(BOLD);
+	unsigned i = 0;
+	while (i != pos)
+	  fputc(expected[i++], stdout);
+	color(GREEN);
+	fputc(expected[pos], stdout);
+	color(OTHER);
+	while (++i != 8)
+	  fputc(expected[i], stdout);
+	unsigned low = 4 * (7 - pos);
+	unsigned hi = low + 3;
+	color(NORMAL);
+	color(OTHER);
+	fputs(" at ", stdout);
+	color(NORMAL);
+	color (WHITE);
+	printf ("I[%u:%u]", hi, low);
+      }
+      color(NORMAL);
       fputc('\n', stdout);
       fflush(stdout);
       if (chars != 1 || ch == 'q')
 	break;
     }
   }
+
+  printf(";\n");
+  color(HEADER);
+  printf("RESULT\n");
+  color(NORMAL);
+  printf("asked       %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(asked, ask),
+	 asked, ask);
+  printf("correct   ");
+  color(GREEN);
+  fputs(OK, stdout);
+  color(NORMAL);
+  printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(correct, asked),
+	 correct, asked);
+  printf("incorrect ");
+  color(RED);
+  fputs(XX, stdout);
+  color(NORMAL);
+  printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(incorrect, asked),
+	 incorrect, asked);
 
   reset();
   return 0;
