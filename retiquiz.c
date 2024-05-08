@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
       questions_string = arg;
     else
       die("too many arguments '%s', '%s' and '%s'", seed_string,
-	  questions_string, arg);
+          questions_string, arg);
   }
 
   // Parse seed string or set to random seed.
@@ -170,13 +170,13 @@ int main(int argc, char **argv) {
     for (const char *p = seed_string; *p; p++) {
       int ch = *p;
       if (!isdigit(ch))
-	die("invalid seed '%s'", seed_string);
+        die("invalid seed '%s'", seed_string);
       if (max_seed / 10 < seed)
-	die("seed '%s' exceeds maximum", seed_string);
+        die("seed '%s' exceeds maximum", seed_string);
       seed *= 10;
       int digit = ch - '0';
       if (max_seed - digit < seed)
-	die("seed '%s' exceeds maximum", seed_string);
+        die("seed '%s' exceeds maximum", seed_string);
       seed += digit;
     }
   } else {
@@ -196,13 +196,13 @@ int main(int argc, char **argv) {
     const uint64_t max_questions = (uint64_t)1 << 32;
     while ((ch = *p++)) {
       if (!isdigit(ch))
-	die("invalid number of questions '%s'", questions_string);
+        die("invalid number of questions '%s'", questions_string);
       if (max_questions / 10 < ask)
-	die("number of questions '%s' exceed maximum", questions_string);
+        die("number of questions '%s' exceed maximum", questions_string);
       ask *= 10;
       int digit = ch - '0';
       if (max_questions - digit < ask)
-	die("number of questions '%s' exceed maximum", questions_string);
+        die("number of questions '%s' exceed maximum", questions_string);
       ask += digit;
     }
   } else
@@ -248,18 +248,18 @@ int main(int argc, char **argv) {
 
     // Force irrelevant '*' to '0'.
 
-    if (type == 1)	   // LOAD
+    if (type == 1)         // LOAD
       code &= ~0x0c000000; // force S to zero
     if (type == 2) {
-      if (mode == 3)	     // MOVE
-	code &= 0xff000000;  // force immediate to zero
-      else		     // STORE
-	code &= ~0x0f000000; // force S and D to zero
+      if (mode == 3)         // MOVE
+        code &= 0xff000000;  // force immediate to zero
+      else                   // STORE
+        code &= ~0x0f000000; // force S and D to zero
     }
-    if (type == 3) {	   // JUMP
+    if (type == 3) {       // JUMP
       code &= ~0x07000000; // force the 3 bits to zero
       if (comparison == 0 || comparison == 7)
-	code &= 0xff000000; // force zero immediate
+        code &= 0xff000000; // force zero immediate
     }
 
     if (!disassemble_reti_code(code, instruction))
@@ -274,20 +274,20 @@ int main(int argc, char **argv) {
       pos = pick32(0, 7);
     else if (type == 2) {
       if (mode == 3) // MOVE thus only first two nibbles.
-	pos = pick32(0, 1);
+        pos = pick32(0, 1);
       else { // STORE
-	pos = pick32(0, 2);
-	if (pos)
-	  pos += 5;
+        pos = pick32(0, 2);
+        if (pos)
+          pos += 5;
       }
     } else {
       pos = pick32(0, 3);
       if (type == 3 && (comparison == 0 || comparison == 7))
-	pos &= 1;
+        pos &= 1;
       else {
-	assert(pos < 4);
-	if (pos > 1)
-	  pos += 4;
+        assert(pos < 4);
+        if (pos > 1)
+          pos += 4;
       }
     }
     assert(pos < 8);
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
     unsigned answer_code = code & ~(0xf << shift);
     answer_code |= nibble << shift;
     bool matched = disassemble_reti_code(answer_code, answer) &&
-		   !strcmp(instruction, answer);
+                   !strcmp(instruction, answer);
     color(matched ? GREEN : RED);
     fputc(ch, stdout);
     color(NORMAL);
@@ -343,12 +343,12 @@ int main(int argc, char **argv) {
       color(BOLD);
       unsigned i = 0;
       while (i != pos)
-	fputc(expected[i++], stdout);
+        fputc(expected[i++], stdout);
       color(GREEN);
       fputc(expected[pos], stdout);
       color(OTHER);
       while (++i != 8)
-	fputc(expected[i], stdout);
+        fputc(expected[i], stdout);
       unsigned low = 4 * (7 - pos);
       unsigned hi = low + 3;
       color(NORMAL);
@@ -369,21 +369,21 @@ int main(int argc, char **argv) {
   printf("RESULT\n");
   color(NORMAL);
   printf("asked       %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(asked, ask),
-	 asked, ask);
+         asked, ask);
   printf("answered    %3.0f%% %4" PRIu64 "/%" PRIu64 "\n",
-	 percent(answered, asked), answered, asked);
+         percent(answered, asked), answered, asked);
   printf("correct   ");
   color(GREEN);
   fputs(OK, stdout);
   color(NORMAL);
   printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(correct, asked),
-	 correct, asked);
+         correct, asked);
   printf("incorrect ");
   color(RED);
   fputs(XX, stdout);
   color(NORMAL);
   printf(" %3.0f%% %4" PRIu64 "/%" PRIu64 "\n", percent(incorrect, asked),
-	 incorrect, asked);
+         incorrect, asked);
 
   color(HEADER);
   printf("POINTS\n");
@@ -393,8 +393,8 @@ int main(int argc, char **argv) {
   else {
     uint64_t points = correct - incorrect;
     printf("%" PRIu64 " points %.0f%%   (%" PRIu64 " correct - %" PRIu64
-	   " incorrect)\n",
-	   points, percent(correct, ask), correct, incorrect);
+           " incorrect)\n",
+           points, percent(correct, ask), correct, incorrect);
   }
 
   double end_time = wall_clock_time();
