@@ -9,9 +9,9 @@ static const char * usage =
 "  -h | --help   print this command line option summary\n"
 "\n"
 "and '<seed>' gives starting seed of the random number generator.\n"
-"The default is to use random seed taking process identifier and time\n"
-"into account.  The number of instructions generated is picked randomly\n"
-"too in the range '1..32' unless '<instructions>' is specified explicitly.\n"
+"The default is to pick a random seed based on the process identifier\n"
+"and time. The number of instructions generated is picked randomly too\n"
+"in the range '1..32' unless '<instructions>' is specified explicitly.\n"
 "If '<instructions>' has a leading '-' it is uniformly picked in that range.\n"
 "A single positive number is a seed and a single negative gives the limit\n"
 "on the number of generated instruction.  With '-' instead of '<seed>'\n"
@@ -164,8 +164,11 @@ int main(int argc, char **argv) {
     }
   } else {
     struct tms tp;
-    seed = 1111111121 * (uint64_t)times(&tp); // Spread time over 64-bits.
-    seed += 20000003 * (uint64_t)getpid();    // Hash in process identifier.
+    generator = (uint64_t)times(&tp); // Use time.
+    (void)random64();                 // Hash time.
+    generator ^= (uint64_t)getpid();  // Mix in process identifier.
+    (void)random64();                 // Hash both.
+    seed = generator;
   }
 
   // Parse instructions argument.

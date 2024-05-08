@@ -147,8 +147,10 @@ int main(int argc, char **argv) {
     if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
       fputs(usage, stdout);
       exit(0);
-    } else if (!strcmp(arg, "n") || !strcmp(arg, "--non-interactive"))
+    } else if (!strcmp(arg, "-n") || !strcmp(arg, "--non-interactive"))
       interactive = false;
+    else if (arg[0] == '-' && arg[1])
+      die("invalid option '%s' (try '-h')", arg);
     else if (!seed_string)
       seed_string = arg;
     else if (!questions_string)
@@ -181,8 +183,11 @@ int main(int argc, char **argv) {
     }
   } else {
     struct tms tp;
-    seed = 1111111121 * (uint64_t)times(&tp); // Spread time over 64-bits.
-    seed += 20000003 * (uint64_t)getpid();    // Hash in process identifier.
+    generator = (uint64_t)times(&tp); // Use time.
+    (void)random64();                 // Hash time.
+    generator ^= (uint64_t)getpid();  // Mix in process identifier.
+    (void)random64();                 // Hash both.
+    seed = generator;
   }
 
   // Parse questions argument.
