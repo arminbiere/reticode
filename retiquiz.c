@@ -112,7 +112,7 @@ static volatile uint64_t incorrect;
 static struct termios original;
 
 static void reset_terminal(void) {
-  assert (interactive);
+  assert(interactive);
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
 }
 
@@ -227,7 +227,9 @@ int main(int argc, char **argv) {
     color(HEADER);
     printf("ReTI Machine Code Quiz Version 0.0.1\n");
     color(NORMAL);
-    printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
+  }
+  printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
+  if (interactive) {
     printf("Enter hexadecimal digits as an answer or\n");
     printf("space ' ' to skip a question or 'q' to quit.\n");
     printf("For irrelevant '*' in the machine code use '0'.\n");
@@ -235,6 +237,8 @@ int main(int argc, char **argv) {
     color(HEADER);
     printf("INSTRUCTION         ; PC       CODE\n");
     color(NORMAL);
+  } else {
+    printf("INSTRUCTION         ; PC       QUERY    SOLUTION     CODE\n");
   }
 
   char instruction[disassembled_reti_code_length];
@@ -305,9 +309,7 @@ int main(int argc, char **argv) {
     query[pos] = '_';
     printf("%-19s ; %08x %s", instruction, (unsigned)pc++, query);
     if (!interactive) {
-      unsigned low = 4 * (7 - pos);
-      unsigned hi = low + 3;
-      printf (" expected %c in %s at I[%u:%u]\n", expected[pos], expected, hi, low);
+      printf("     %c    %s\n", expected[pos], expected);
       continue;
     }
     for (unsigned i = 0; i != 8 - pos; i++)
