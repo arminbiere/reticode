@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
       fputc('\b', stdout);
     fflush(stdout);
     int ch;
-  READ1:
+  READ1:;
     ssize_t chars = read(STDIN_FILENO, &ch, 1);
     if (chars == 1 && ch == 'q') {
       fputc('\n', stdout);
