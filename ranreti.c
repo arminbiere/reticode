@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
   char str[disassembled_reti_code_length];
   uint64_t pc = 0;
 
-  for (uint64_t sampled = 0; sampled != instructions; sampled++) {
+  while (pc != instructions) {
 
     unsigned code = random32(); // Generate arbitrary random code.
 
@@ -247,6 +247,8 @@ int main(int argc, char **argv) {
       code &= ~0xffffff;            // Clear immediate bits.
       code |= immediate & 0xffffff; // Add new random immediate.
     }
+
+    // Avoid PC as destination register.
 
     if (!((code >> 24) & 3))
       code |= pick32(1, 3) << 24;
