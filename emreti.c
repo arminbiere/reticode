@@ -63,6 +63,17 @@ static const char *usage =
 #endif
 
 //----------------------------------------------------------------------------//
+#ifdef LOGCAPACITY
+
+// The LOGCAPACITY can be specified with the configure script.
+// For instance './configure 16' uses 2^16 words.
+
+#define CAPACITY ((size_t)1 << LOGCAPACITY)
+
+#else
+
+// If 'LOGCAPACITY' is not defined we are optimistic and use the default
+// which works on Linux, as follows.
 
 // On Linux allocating 2^32 unsigned words for the code and data memories
 // succeeds as it actually only allocates virtual memory, which is mapped
@@ -75,8 +86,9 @@ static const char *usage =
 
 // Yields 2^16 words = 256 KB for each the code and data memory.
 //
-// #define CAPACITY ((size_t)1 << 32) // yields 2^16 words = 256 KB
+// #define CAPACITY ((size_t)1 << 16) // yields 2^16 words = 256 KB
 
+#endif
 //----------------------------------------------------------------------------//
 
 // These 'BV' macros allow to generate constant bit-vectors of the given

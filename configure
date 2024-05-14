@@ -1,7 +1,16 @@
 #!/bin/sh
 usage() {
 cat <<EOF
-usage: configure [-h | --help] [-g | --debug] [-n | --no-stepping]
+usage: configure [ <option> ... ] [ <LOGCAPACITY> ]
+
+where '<option>' is one of the following
+
+-g | --debug          compile for debugging
+-h | --help           print this option summary
+-n | --no-stepping    do not include for stepping
+
+while '<LOGCAPACITY>' is a number in the range 10 to 32 and forces the
+allocated address space 'CAPACITY' of the emulator to '2^<LOGCAPACITY>'.
 EOF
 }
 die () {
@@ -13,12 +22,14 @@ msg () {
 }
 debug=no
 stepping=yes
+logcapacity=undefined
 while [ $# -gt 0 ]
 do
   case "$1" in
     -h | --help) usage; exit 0;;
     -g | --debug) debug=yes;;
     -n | --no-stepping) stepping=no;;
+    [12][0-9] | 3[0-2]) logcapacity=$1;;
     *) die "invalid option '$1' (try '-h')";;
   esac
   shift
@@ -31,6 +42,7 @@ else
   COMPILE="$COMPILE -O3 -DNDEBUG"
 fi
 [ $stepping = no ] && COMPILE="$COMPILE -DNSTEPPING"
+[ $logcapacity = undefined ] || COMPILE="$COMPILE -DLOGCAPACITY=$logcapacity"
 msg "compiling with '$COMPILE'"
 sed -e "s#@COMPILE@#$COMPILE#" makefile.in > makefile
 msg "generated 'makefile' (run 'make')"
