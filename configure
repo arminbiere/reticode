@@ -41,8 +41,10 @@ then
 else
   COMPILE="$COMPILE -O3 -DNDEBUG"
 fi
+version="`cat VERSION`"
 [ $stepping = no ] && COMPILE="$COMPILE -DNSTEPPING"
 [ $logcapacity = undefined ] || COMPILE="$COMPILE -DLOGCAPACITY=$logcapacity"
+COMPILE="$COMPILE -DVERSION=\\\\\\\"$version\\\\\\\""
 msg "compiling with '$COMPILE'"
 sed -e "s#@COMPILE@#$COMPILE#" makefile.in > makefile
 msg "generated 'makefile' (run 'make')"

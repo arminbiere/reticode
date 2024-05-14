@@ -228,7 +228,7 @@ int main(int argc, char **argv) {
 
   if (interactive) {
     color(HEADER);
-    printf("ReTI Machine Code Quiz Version 0.0.1\n");
+    printf("ReTI Machine Code Quiz Version " VERSION "\n");
     color(NORMAL);
   }
   printf("retiquiz %" PRIu64 " %" PRIu64 "\n", seed, ask);
