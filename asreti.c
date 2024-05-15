@@ -531,7 +531,7 @@ int main(int argc, char **argv) {
       break;
     }
 
-    if (ch != ' ')
+    if (ch != ' ' && ch != '\t')
       invalid_instruction();
 
     // After parsing the prefix the instruction and setting its code we
