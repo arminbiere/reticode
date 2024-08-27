@@ -608,7 +608,7 @@ int main(int argc, char **argv) {
         D_write = true;
         break;
       case BV4(0, 1, 0, 1): // LOADIN1 D i
-        address = IN1 + unsigned_immediate;
+        address = IN1 + signed_immediate;
         INSTRUCTION("LOADIN1 %s %u", D_symbol, i);
         ACTION("%s = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
                D_symbol, i, IN1, i, address, result);
@@ -617,7 +617,7 @@ int main(int argc, char **argv) {
         D_write = true;
         break;
       case BV4(0, 1, 1, 0): // LOADIN2 D i
-        address = IN2 + unsigned_immediate;
+        address = IN2 + signed_immediate;
         INSTRUCTION("LOADIN2 %s %u", D_symbol, i);
         ACTION("%s = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = M(0x%x) = 0x%x",
                D_symbol, i, IN2, i, address, result);
@@ -644,7 +644,7 @@ int main(int argc, char **argv) {
         M_write = true;
         break;
       case BV4(1, 0, 0, 1): // STOREIN1 i
-        address = IN1 + unsigned_immediate;
+        address = IN1 + signed_immediate;
         result = ACC;
         INSTRUCTION("STOREIN1 %u", i);
         ACTION("M(0x%x) = M(<IN1> + <0x%x>) = M(0x%x + 0x%x) = ACC = 0x%x",
@@ -652,7 +652,7 @@ int main(int argc, char **argv) {
         M_write = true;
         break;
       case BV4(1, 0, 1, 0): // STOREIN2 i
-        address = IN2 + unsigned_immediate;
+        address = IN2 + signed_immediate;
         result = ACC;
         INSTRUCTION("STOREIN2 %u", i);
         ACTION("M(0x%x) = M(<IN2> + <0x%x>) = M(0x%x + 0x%x) = ACC = 0x%x",
