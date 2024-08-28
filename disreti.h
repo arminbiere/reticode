@@ -25,9 +25,9 @@ static inline bool disassemble_reti_code(const unsigned code, char *str) {
       if (next_top_two_bits == 0)
         instruction = "LOAD", instruction_length = 4;
       else if (next_top_two_bits == 1)
-        instruction = "LOADIN1", instruction_length = 7;
+        instruction = "LOADIN1", instruction_length = 7, positive = false;
       else if (next_top_two_bits == 2)
-        instruction = "LOADIN2", instruction_length = 7;
+        instruction = "LOADIN2", instruction_length = 7, positive = false;
       else {
         assert(next_top_two_bits == 3);
         instruction = "LOADI", instruction_length = 5;
@@ -39,10 +39,10 @@ static inline bool disassemble_reti_code(const unsigned code, char *str) {
         if (next_top_two_bits == 0)
           instruction = "STORE", instruction_length = 5;
         else if (next_top_two_bits == 1)
-          instruction = "STOREIN1", instruction_length = 8;
+          instruction = "STOREIN1", instruction_length = 8, positive = false;
         else {
           assert(next_top_two_bits == 2);
-          instruction = "STOREIN2", instruction_length = 8;
+          instruction = "STOREIN2", instruction_length = 8, positive = false;
         }
       } else {
         instruction = "MOVE", instruction_length = 4;
