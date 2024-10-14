@@ -1,7 +1,7 @@
 ReTI-Code
 ---------
 
-A simple enulator for the ReTI processor.
+A simple emulator for the ReTI processor.
 
 - `asreti` assembler (ReTI assembler into ReTI code)
 - `decbin` decodes binary (code/data) into hexadecimal
