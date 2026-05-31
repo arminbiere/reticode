@@ -339,7 +339,7 @@ int main(int argc, char **argv) {
 
     // And now read from the terminal a character.
 
-    int ch=0;
+    char ch = 0;
   READ1:;
     ssize_t chars = read(STDIN_FILENO, &ch, 1);
 
